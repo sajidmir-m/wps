@@ -72,9 +72,6 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-5 text-xs text-muted">
-              First admin login after setup: <b>admin@wpcollege.local</b> / <b>admin123</b>
-            </p>
           </div>
         </section>
       </div>

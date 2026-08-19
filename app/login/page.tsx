@@ -20,10 +20,6 @@ export default async function LoginPage() {
           <div className="mt-6">
             <AuthForm mode="login" />
           </div>
-          <div className="mt-6 rounded-2xl bg-off-white p-4 text-sm text-muted">
-            <p>Admin demo: admin@wpcollege.local / admin123</p>
-            <p>Student demo: aarav@student.local / student123</p>
-          </div>
         </div>
       </div>
     </main>

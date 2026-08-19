@@ -52,8 +52,8 @@ export default async function CredentialsPage() {
         </div>
         {missing > 0 ? (
           <p className="mt-4 rounded-xl bg-warning-light px-3 py-2 text-sm text-warning">
-            {missing} student{missing === 1 ? "" : "s"} still {missing === 1 ? "has" : "have"} the
-            old shared password. Click <b>Generate passwords</b> above to give everyone their own.
+            {missing} student{missing === 1 ? "" : "s"} {missing === 1 ? "does" : "do"} not have a
+            password on record yet. Click <b>Generate passwords</b> above to issue one to everyone.
           </p>
         ) : null}
       </Card>
@@ -84,7 +84,7 @@ export default async function CredentialsPage() {
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-muted">Password</dt>
                     <dd className={password ? "font-mono font-medium" : "text-warning"}>
-                      {password ?? "student123 (shared — generate a new one)"}
+                      {password ?? "Not generated yet"}
                     </dd>
                   </div>
                 </dl>

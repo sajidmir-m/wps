@@ -31,22 +31,26 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 3. Open the Supabase SQL Editor and run each file in `supabase/migrations/` in order:
    - `001_schema.sql` — tables, row-level security, and the new-user trigger
    - `002_student_credentials.sql` — admin-only table holding each student's generated password
-4. Install dependencies and seed the database:
+4. Install dependencies and start the app:
 
 ```bash
 npm install
-npm run db:seed
 npm run dev
 ```
 
 5. Open http://localhost:3000
 
-### First logins
+### Create the first admin
 
-- Admin: `admin@wpcollege.local` / `admin123`
-- Sample student: `aarav@student.local` / `student123`
+There are no built-in accounts. Create your own in the Supabase dashboard under **Authentication → Users → Add user**, tick **Confirm email**, and set the user metadata to:
 
-## Add your real student list
+```json
+{ "name": "Your Name", "role": "ADMIN", "subscription": "ACTIVE" }
+```
+
+The trigger from `001_schema.sql` creates the matching profile row automatically. Log in with that email and password to reach the admin dashboard.
+
+## Add your student list
 
 Admin → **Students** → paste the list as:
 

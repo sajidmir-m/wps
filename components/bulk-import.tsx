@@ -38,7 +38,7 @@ export function BulkImport({
           name="list"
           rows={8}
           className={inputClass}
-          placeholder={"Aarav Sharma, aarav@college.edu\nDiya Patel, diya@college.edu\nKabir Singh"}
+          placeholder={"Student name, email@college.edu\nStudent name, email@college.edu\nStudent name"}
         />
       </Field>
       <p className="text-xs text-muted">
