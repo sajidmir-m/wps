@@ -8,9 +8,10 @@ import { generatePassword } from "@/lib/password";
 import type { SubscriptionStatus } from "@/lib/types";
 
 async function saveCredential(studentId: string, password: string) {
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("student_credentials")
     .upsert({ student_id: studentId, password, updated_at: new Date().toISOString() });
+  return !error;
 }
 
 export async function createGroupAction(formData: FormData) {
@@ -169,10 +170,13 @@ export async function resetStudentPasswordAction(formData: FormData) {
   if (!profile || profile.role === "ADMIN") return;
 
   const password = generatePassword();
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password });
-  if (error) return;
 
-  await saveCredential(id, password);
+  // Record the readable copy before changing it in Auth. If this write fails
+  // the student keeps a password we can still look up, rather than one nobody
+  // can recover.
+  if (!(await saveCredential(id, password))) return;
+
+  await supabaseAdmin.auth.admin.updateUserById(id, { password });
   revalidatePath("/admin", "layout");
 }
 
@@ -188,15 +192,28 @@ export async function resetAllPasswordsAction() {
   if (!students?.length) return { error: "No students found." };
 
   let updated = 0;
+  let failed = 0;
+
   for (const student of students) {
     const password = generatePassword();
+
+    // Record the readable copy before changing it in Auth, so a failed write
+    // leaves the student on their old password instead of an unrecoverable one.
+    if (!(await saveCredential(student.id, password))) {
+      failed += 1;
+      continue;
+    }
+
     const { error } = await supabaseAdmin.auth.admin.updateUserById(student.id, { password });
-    if (error) continue;
-    await saveCredential(student.id, password);
+    if (error) {
+      failed += 1;
+      continue;
+    }
+
     updated += 1;
   }
 
   revalidatePath("/admin", "layout");
-  return { ok: true, updated };
+  return { ok: true, updated, failed };
 }
 

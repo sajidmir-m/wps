@@ -5,7 +5,7 @@ import { resetAllPasswordsAction } from "@/app/actions/admin";
 import { btnGhost } from "./ui";
 
 export function ResetAllPasswords({ missing }: { missing: number }) {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [pending, start] = useTransition();
 
@@ -13,11 +13,20 @@ export function ResetAllPasswords({ missing }: { missing: number }) {
     start(async () => {
       const result = await resetAllPasswordsAction();
       setConfirming(false);
-      setMessage(
-        result?.error
-          ? result.error
-          : `Generated a new password for ${result?.updated ?? 0} students.`,
-      );
+
+      if (result?.error) {
+        setMessage({ text: result.error, ok: false });
+        return;
+      }
+
+      const updated = result?.updated ?? 0;
+      const failed = result?.failed ?? 0;
+      setMessage({
+        text: failed
+          ? `Generated a new password for ${updated} students. ${failed} could not be saved — check that 002_student_credentials.sql has been run in Supabase. Those students kept their old password.`
+          : `Generated a new password for ${updated} students.`,
+        ok: failed === 0,
+      });
     });
   }
 
@@ -45,7 +54,15 @@ export function ResetAllPasswords({ missing }: { missing: number }) {
           {missing > 0 ? `Generate passwords (${missing} missing)` : "Generate new passwords"}
         </button>
       )}
-      {message ? <p className="mt-2 text-sm text-success">{message}</p> : null}
+      {message ? (
+        <p
+          className={`mt-2 rounded-lg px-3 py-2 text-sm ${
+            message.ok ? "bg-success-light text-success" : "bg-danger-light text-danger"
+          }`}
+        >
+          {message.text}
+        </p>
+      ) : null}
     </div>
   );
 }
