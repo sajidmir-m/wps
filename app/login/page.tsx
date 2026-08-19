@@ -1,0 +1,31 @@
+import { AuthForm } from "@/components/auth-form";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+
+export default async function LoginPage() {
+  const session = await getSession();
+  if (session?.role === "ADMIN") redirect("/admin");
+  if (session) redirect("/student");
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
+      <div className="w-full max-w-md">
+        <Link href="/" className="font-display text-3xl text-primary">
+          WPC Srinagar
+        </Link>
+        <p className="mt-2 text-muted">Log in with email and password.</p>
+        <div className="mt-6 rounded-3xl border border-line bg-white p-6 shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
+          <h1 className="font-display text-4xl">Log in</h1>
+          <div className="mt-6">
+            <AuthForm mode="login" />
+          </div>
+          <div className="mt-6 rounded-2xl bg-off-white p-4 text-sm text-muted">
+            <p>Admin demo: admin@wpcollege.local / admin123</p>
+            <p>Student demo: aarav@student.local / student123</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
