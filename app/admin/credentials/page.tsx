@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { Shell, Card } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
@@ -11,11 +11,10 @@ export default async function CredentialsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
   const [studentsData, groupsData, credentialsData] = await Promise.all([
-    supabase.from("profiles").select("*").eq("role", "STUDENT").order("name", { ascending: true }),
-    supabase.from("groups").select("*"),
-    supabase.from("student_credentials").select("*"),
+    supabaseAdmin.from("profiles").select("*").eq("role", "STUDENT").order("name", { ascending: true }),
+    supabaseAdmin.from("groups").select("*"),
+    supabaseAdmin.from("student_credentials").select("*"),
   ]);
 
   const students = (studentsData.data || []) as Profile[];

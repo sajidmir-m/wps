@@ -4,6 +4,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Server actions already authenticate inside the action. Skipping Auth here
+  // avoids a second round trip to Supabase on every Save / form post.
+  if (request.headers.has("next-action")) {
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

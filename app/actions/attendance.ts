@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import type { AttendanceStatus } from "@/lib/types";
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 
 export async function markAttendanceAction(formData: FormData) {
@@ -20,33 +19,25 @@ export async function markAttendanceAction(formData: FormData) {
 
   if (!date) return { error: "Pick a date." };
 
-  const supabase = await createClient();
-  for (const mark of marks) {
-    if (!mark.studentId || !mark.status) continue;
-    const { data: existing } = await supabase
-      .from("attendance")
-      .select("id")
-      .eq("student_id", mark.studentId)
-      .eq("date", date)
-      .single();
+  const rows = marks
+    .filter((mark) => mark.studentId && mark.status)
+    .map((mark) => ({
+      student_id: mark.studentId,
+      date,
+      status: mark.status,
+      marked_by_id: admin.id,
+    }));
 
-    if (existing) {
-      await supabase
-        .from("attendance")
-        .update({ status: mark.status, marked_by_id: admin.id })
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("attendance").insert({
-        student_id: mark.studentId,
-        date,
-        status: mark.status,
-        marked_by_id: admin.id,
-      });
-    }
-  }
+  if (!rows.length) return { error: "Mark at least one student." };
 
-  revalidatePath("/admin", "layout");
-  revalidatePath("/student", "layout");
+  const { error } = await supabaseAdmin
+    .from("attendance")
+    .upsert(rows, { onConflict: "student_id,date" });
+
+  if (error) return { error: "Could not save attendance. Please try again." };
+
+  // Do not revalidate the admin layout — that re-fetched the whole page after
+  // every save. The attendance board updates its own saved state instead.
   return { ok: true };
 }
 
@@ -59,29 +50,11 @@ export async function markOneAction(formData: FormData) {
   const status = String(formData.get("status") || "") as AttendanceStatus;
   if (!studentId || !date || !status) return { error: "Missing fields." };
 
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("attendance")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .single();
+  const { error } = await supabaseAdmin.from("attendance").upsert(
+    { student_id: studentId, date, status, marked_by_id: admin.id },
+    { onConflict: "student_id,date" },
+  );
 
-  if (existing) {
-    await supabase
-      .from("attendance")
-      .update({ status, marked_by_id: admin.id })
-      .eq("id", existing.id);
-  } else {
-    await supabase.from("attendance").insert({
-      student_id: studentId,
-      date,
-      status,
-      marked_by_id: admin.id,
-    });
-  }
-
-  revalidatePath("/admin", "layout");
-  revalidatePath("/student", "layout");
+  if (error) return { error: "Could not save attendance. Please try again." };
   return { ok: true };
 }

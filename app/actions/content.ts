@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireUser } from "@/lib/auth";
 
 export async function createLessonAction(formData: FormData) {
@@ -16,8 +16,7 @@ export async function createLessonAction(formData: FormData) {
 
   if (!date || !topic || !method) return;
 
-  const supabase = await createClient();
-  await supabase.from("lessons").insert({
+  await supabaseAdmin.from("lessons").insert({
     date,
     topic,
     method,
@@ -26,18 +25,17 @@ export async function createLessonAction(formData: FormData) {
     author_id: admin.id,
   });
 
-  revalidatePath("/admin", "layout");
-  revalidatePath("/student", "layout");
+  revalidatePath("/admin/lessons");
+  revalidatePath("/student/lessons");
 }
 
 export async function deleteLessonAction(formData: FormData) {
   const admin = await requireAdmin();
   if (!admin) return;
 
-  const supabase = await createClient();
-  await supabase.from("lessons").delete().eq("id", String(formData.get("id") || ""));
-  revalidatePath("/admin", "layout");
-  revalidatePath("/student", "layout");
+  await supabaseAdmin.from("lessons").delete().eq("id", String(formData.get("id") || ""));
+  revalidatePath("/admin/lessons");
+  revalidatePath("/student/lessons");
 }
 
 export async function createCommentAction(formData: FormData) {
@@ -49,13 +47,12 @@ export async function createCommentAction(formData: FormData) {
   const parentId = String(formData.get("parentId") || "") || null;
   if (!body) return;
 
-  const supabase = await createClient();
-  await supabase.from("comments").insert({
+  await supabaseAdmin.from("comments").insert({
     body,
     author_id: user.id,
     parent_id: parentId,
   });
 
-  revalidatePath("/admin", "layout");
-  revalidatePath("/student", "layout");
+  revalidatePath("/admin/comments");
+  revalidatePath("/student/comments");
 }

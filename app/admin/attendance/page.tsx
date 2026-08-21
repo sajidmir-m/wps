@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { todayISO, formatDisplayDate } from "@/lib/dates";
 import { Shell, Card } from "@/components/ui";
@@ -19,12 +19,17 @@ export default async function AttendancePage({
   const date = params.date || todayISO();
   const groupId = params.group ?? "";
 
-  const supabase = await createClient();
+  let studentsQuery = supabaseAdmin
+    .from("profiles")
+    .select("id, name, email, group_id")
+    .eq("role", "STUDENT")
+    .order("name", { ascending: true });
+  if (groupId) studentsQuery = studentsQuery.eq("group_id", groupId);
 
   const [groupsData, studentsData, attendanceData] = await Promise.all([
-    supabase.from("groups").select("*").order("name", { ascending: true }),
-    supabase.from("profiles").select("*").eq("role", "STUDENT").order("name", { ascending: true }),
-    supabase.from("attendance").select("*").eq("date", date),
+    supabaseAdmin.from("groups").select("id, name").order("name", { ascending: true }),
+    studentsQuery,
+    supabaseAdmin.from("attendance").select("student_id, status").eq("date", date),
   ]);
 
   const groups = (groupsData.data || []) as Group[];

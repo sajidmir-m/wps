@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { formatDisplayDate } from "@/lib/dates";
 import { computeStats } from "@/lib/stats";
@@ -11,12 +11,10 @@ export default async function ReportsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
-
   const [studentsData, groupsData, attendanceData] = await Promise.all([
-    supabase.from("profiles").select("*").eq("role", "STUDENT").order("name", { ascending: true }),
-    supabase.from("groups").select("*"),
-    supabase.from("attendance").select("*").order("date", { ascending: true }),
+    supabaseAdmin.from("profiles").select("id, name, email, group_id").eq("role", "STUDENT").order("name", { ascending: true }),
+    supabaseAdmin.from("groups").select("id, name"),
+    supabaseAdmin.from("attendance").select("student_id, date, status").order("date", { ascending: true }),
   ]);
 
   const students = (studentsData.data || []) as Profile[];

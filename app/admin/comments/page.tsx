@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { Shell, Card, inputClass, btnPrimary } from "@/components/ui";
 import { createCommentAction } from "@/app/actions/content";
@@ -9,8 +9,7 @@ export default async function CommentsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
-  const { data: threadsData } = await supabase
+  const { data: threadsData } = await supabaseAdmin
     .from("comments")
     .select("*, profiles(*), replies:comments(*, profiles(*))")
     .is("parent_id", null)

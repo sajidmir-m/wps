@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { todayISO } from "@/lib/dates";
 import { Shell, Card, Field, inputClass, btnPrimary, btnGhost } from "@/components/ui";
@@ -20,11 +20,9 @@ export default async function LessonsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
-
   const [groupsData, lessonsData] = await Promise.all([
-    supabase.from("groups").select("*").order("name", { ascending: true }),
-    supabase
+    supabaseAdmin.from("groups").select("*").order("name", { ascending: true }),
+    supabaseAdmin
       .from("lessons")
       .select("*, groups(*)")
       .order("date", { ascending: false })

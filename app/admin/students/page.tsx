@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { Shell, Card, Field, inputClass, btnPrimary, btnGhost } from "@/components/ui";
 import { BulkImport } from "@/components/bulk-import";
@@ -16,10 +16,9 @@ export default async function StudentsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
   const [groupsData, studentsData] = await Promise.all([
-    supabase.from("groups").select("*").order("name", { ascending: true }),
-    supabase
+    supabaseAdmin.from("groups").select("*").order("name", { ascending: true }),
+    supabaseAdmin
       .from("profiles")
       .select("*, groups(*)")
       .eq("role", "STUDENT")

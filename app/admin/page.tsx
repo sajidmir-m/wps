@@ -1,41 +1,50 @@
-import { createClient } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { todayISO, formatDisplayDate } from "@/lib/dates";
 import { computeStats } from "@/lib/stats";
 import { Card, Shell, Stat } from "@/components/ui";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import type { AttendanceRecord, Lesson, Comment, Group, Profile } from "@/lib/types";
+import type { AttendanceRecord } from "@/lib/types";
 
 export default async function AdminHome() {
   const admin = await requireAdmin();
   if (!admin) redirect("/login");
 
-  const supabase = await createClient();
   const today = todayISO();
 
   const [studentsData, groupsData, lessonsData, commentsData, allAttendanceData] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("role", "STUDENT").order("name", { ascending: true }),
-      supabase.from("groups").select("*").order("name", { ascending: true }),
-      supabase
+      supabaseAdmin.from("profiles").select("id, name, group_id").eq("role", "STUDENT").order("name", { ascending: true }),
+      supabaseAdmin.from("groups").select("id, name").order("name", { ascending: true }),
+      supabaseAdmin
         .from("lessons")
-        .select("*, groups(*)")
+        .select("id, date, topic, method, groups(name)")
         .order("date", { ascending: false })
         .limit(5),
-      supabase
+      supabaseAdmin
         .from("comments")
-        .select("*, profiles(*)")
+        .select("id, body, profiles(name)")
         .is("parent_id", null)
         .order("created_at", { ascending: false })
         .limit(5),
-      supabase.from("attendance").select("*"),
+      supabaseAdmin.from("attendance").select("student_id, date, status"),
     ]);
 
-  const students = (studentsData.data || []) as Profile[];
-  const groups = (groupsData.data || []) as Group[];
-  const lessons = (lessonsData.data || []) as (Lesson & { groups: Group | null })[];
-  const comments = (commentsData.data || []) as (Comment & { profiles: Profile })[];
+  const students = (studentsData.data || []) as { id: string; name: string; group_id: string | null }[];
+  const groups = (groupsData.data || []) as { id: string; name: string }[];
+  const lessons = (lessonsData.data || []) as {
+    id: string;
+    date: string;
+    topic: string;
+    method: string;
+    groups: { name: string } | { name: string }[] | null;
+  }[];
+  const comments = (commentsData.data || []) as {
+    id: string;
+    body: string;
+    profiles: { name: string } | { name: string }[] | null;
+  }[];
   const allAttendance = (allAttendanceData.data || []) as AttendanceRecord[];
   const attendance = allAttendance.filter((a) => a.date === today);
 
@@ -54,6 +63,11 @@ export default async function AdminHome() {
       : Math.round((withMarks.reduce((sum, s) => sum + s.percent, 0) / withMarks.length) * 10) / 10;
   const neverAbsent = stats.filter((s) => s.continuous && s.marked > 0).length;
   const todayPresent = attendance.filter((a) => a.status !== "ABSENT").length;
+
+  function relationName(value: { name: string } | { name: string }[] | null) {
+    if (!value) return null;
+    return Array.isArray(value) ? value[0]?.name ?? null : value.name;
+  }
 
   return (
     <Shell
@@ -114,7 +128,7 @@ export default async function AdminHome() {
                 <p className="font-medium">{l.topic}</p>
                 <p className="text-sm text-muted">
                   {l.date} · {l.method}
-                  {l.groups ? ` · ${l.groups.name}` : " · All groups"}
+                  {relationName(l.groups) ? ` · ${relationName(l.groups)}` : " · All groups"}
                 </p>
               </li>
             ))}
@@ -136,7 +150,7 @@ export default async function AdminHome() {
           {comments.map((c) => (
             <li key={c.id} className="rounded-xl bg-off-white px-3 py-2">
               <p className="text-sm">{c.body}</p>
-              <p className="mt-1 text-xs text-muted">{c.profiles?.name}</p>
+              <p className="mt-1 text-xs text-muted">{relationName(c.profiles)}</p>
             </li>
           ))}
           {!comments.length ? (

@@ -1,17 +1,39 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { generatePassword } from "@/lib/password";
 import type { SubscriptionStatus } from "@/lib/types";
 
-async function saveCredential(studentId: string, password: string) {
-  const { error } = await supabaseAdmin
-    .from("student_credentials")
-    .upsert({ student_id: studentId, password, updated_at: new Date().toISOString() });
+async function saveCredentials(entries: { studentId: string; password: string }[]) {
+  if (!entries.length) return true;
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabaseAdmin.from("student_credentials").upsert(
+    entries.map((entry) => ({
+      student_id: entry.studentId,
+      password: entry.password,
+      updated_at: updatedAt,
+    })),
+  );
   return !error;
+}
+
+async function takenEmails(emails: string[]) {
+  if (!emails.length) return new Set<string>();
+  const { data } = await supabaseAdmin.from("profiles").select("email").in("email", emails);
+  return new Set((data ?? []).map((row) => String(row.email).toLowerCase()));
+}
+
+// Supabase Auth has no bulk user endpoint, so these calls stay one-per-student.
+// Running them in small batches keeps the wait proportional to the batch count
+// rather than the class size, without tripping rate limits.
+async function inBatches<T, R>(items: T[], size: number, run: (item: T) => Promise<R>) {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    results.push(...(await Promise.all(items.slice(i, i + size).map(run))));
+  }
+  return results;
 }
 
 export async function createGroupAction(formData: FormData) {
@@ -22,9 +44,8 @@ export async function createGroupAction(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   if (!name) return;
 
-  const supabase = await createClient();
-  await supabase.from("groups").insert({ name, description: description || null });
-  revalidatePath("/admin", "layout");
+  await supabaseAdmin.from("groups").insert({ name, description: description || null });
+  revalidatePath("/admin/students");
 }
 
 export async function deleteGroupAction(formData: FormData) {
@@ -32,10 +53,9 @@ export async function deleteGroupAction(formData: FormData) {
   if (!admin) return;
 
   const id = String(formData.get("id") || "");
-  const supabase = await createClient();
-  await supabase.from("profiles").update({ group_id: null }).eq("group_id", id);
-  await supabase.from("groups").delete().eq("id", id);
-  revalidatePath("/admin", "layout");
+  await supabaseAdmin.from("profiles").update({ group_id: null }).eq("group_id", id);
+  await supabaseAdmin.from("groups").delete().eq("id", id);
+  revalidatePath("/admin/students");
 }
 
 export async function addStudentAction(formData: FormData) {
@@ -49,8 +69,7 @@ export async function addStudentAction(formData: FormData) {
 
   if (!name || !email) return;
 
-  const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-  if (existing?.users.find((u) => u.email === email)) return;
+  if ((await takenEmails([email])).has(email)) return;
 
   const { data: created } = await supabaseAdmin.auth.admin.createUser({
     email,
@@ -64,9 +83,12 @@ export async function addStudentAction(formData: FormData) {
     },
   });
 
-  if (created?.user) await saveCredential(created.user.id, password);
+  if (created?.user) {
+    await saveCredentials([{ studentId: created.user.id, password }]);
+  }
 
-  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/credentials");
 }
 
 export async function bulkAddStudentsAction(formData: FormData) {
@@ -82,45 +104,43 @@ export async function bulkAddStudentsAction(formData: FormData) {
 
   if (!lines.length) return { error: "Paste at least one student." };
 
-  let added = 0;
-  let skipped = 0;
-
-  const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-
-  for (const line of lines) {
+  const candidates = lines.flatMap((line) => {
     const parts = line.split(/[,|\t]/).map((p) => p.trim()).filter(Boolean);
     const name = parts[0];
-    if (!name) continue;
+    if (!name) return [];
     const rawEmail = parts[1];
-    const email =
-      rawEmail?.includes("@")
-        ? rawEmail.toLowerCase()
-        : `${name.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@student.local`;
+    const email = rawEmail?.includes("@")
+      ? rawEmail.toLowerCase()
+      : `${name.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@student.local`;
+    return [{ name, email }];
+  });
 
-    if (existing?.users.find((u) => u.email === email)) {
-      skipped += 1;
-      continue;
-    }
+  const taken = await takenEmails(candidates.map((c) => c.email));
+  const fresh = candidates.filter((c) => !taken.has(c.email));
+  const skipped = candidates.length - fresh.length;
 
+  const created = await inBatches(fresh, 5, async (student) => {
     const password = generatePassword();
-    const { data: created } = await supabaseAdmin.auth.admin.createUser({
-      email,
+    const { data } = await supabaseAdmin.auth.admin.createUser({
+      email: student.email,
       password,
       email_confirm: true,
       user_metadata: {
-        name,
+        name: student.name,
         role: "STUDENT",
         subscription: "ACTIVE",
         group_id: groupId,
       },
     });
+    return data?.user ? { studentId: data.user.id, password } : null;
+  });
 
-    if (created?.user) await saveCredential(created.user.id, password);
-    added += 1;
-  }
+  const saved = created.filter((entry) => entry !== null);
+  await saveCredentials(saved);
 
-  revalidatePath("/admin", "layout");
-  return { ok: true, added, skipped };
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/credentials");
+  return { ok: true, added: saved.length, skipped };
 }
 
 export async function updateStudentAction(formData: FormData) {
@@ -131,12 +151,11 @@ export async function updateStudentAction(formData: FormData) {
   const groupId = String(formData.get("groupId") || "") || null;
   const subscription = String(formData.get("subscription") || "ACTIVE") as SubscriptionStatus;
 
-  const supabase = await createClient();
-  await supabase
+  await supabaseAdmin
     .from("profiles")
     .update({ group_id: groupId, subscription })
     .eq("id", id);
-  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/students");
 }
 
 export async function deleteStudentAction(formData: FormData) {
@@ -152,7 +171,8 @@ export async function deleteStudentAction(formData: FormData) {
   if (!profile || profile.role === "ADMIN") return;
 
   await supabaseAdmin.auth.admin.deleteUser(id);
-  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/credentials");
 }
 
 export async function resetStudentPasswordAction(formData: FormData) {
@@ -174,10 +194,10 @@ export async function resetStudentPasswordAction(formData: FormData) {
   // Record the readable copy before changing it in Auth. If this write fails
   // the student keeps a password we can still look up, rather than one nobody
   // can recover.
-  if (!(await saveCredential(id, password))) return;
+  if (!(await saveCredentials([{ studentId: id, password }]))) return;
 
   await supabaseAdmin.auth.admin.updateUserById(id, { password });
-  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/credentials");
 }
 
 export async function resetAllPasswordsAction() {
@@ -191,29 +211,27 @@ export async function resetAllPasswordsAction() {
 
   if (!students?.length) return { error: "No students found." };
 
-  let updated = 0;
-  let failed = 0;
+  const entries = students.map((student) => ({
+    studentId: student.id,
+    password: generatePassword(),
+  }));
 
-  for (const student of students) {
-    const password = generatePassword();
-
-    // Record the readable copy before changing it in Auth, so a failed write
-    // leaves the student on their old password instead of an unrecoverable one.
-    if (!(await saveCredential(student.id, password))) {
-      failed += 1;
-      continue;
-    }
-
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(student.id, { password });
-    if (error) {
-      failed += 1;
-      continue;
-    }
-
-    updated += 1;
+  // Record the readable copies before changing anything in Auth, so a failed
+  // write leaves students on their old passwords instead of unrecoverable ones.
+  if (!(await saveCredentials(entries))) {
+    return { error: "Could not save the new passwords. Nothing was changed." };
   }
 
-  revalidatePath("/admin", "layout");
-  return { ok: true, updated, failed };
+  const outcomes = await inBatches(entries, 5, async (entry) => {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(entry.studentId, {
+      password: entry.password,
+    });
+    return !error;
+  });
+
+  const updated = outcomes.filter(Boolean).length;
+
+  revalidatePath("/admin/credentials");
+  return { ok: true, updated, failed: outcomes.length - updated };
 }
 

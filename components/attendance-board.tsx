@@ -34,6 +34,7 @@ export function AttendanceBoard({
   }, [students]);
 
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>(initialMarks);
+  const [saved, setSaved] = useState<Record<string, AttendanceStatus>>(initialMarks);
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [pending, start] = useTransition();
@@ -54,7 +55,7 @@ export function AttendanceBoard({
   }, [students, query]);
 
   const unmarked = students.length - Object.keys(marks).length;
-  const dirty = students.some((s) => (marks[s.id] ?? null) !== (s.existing ?? null));
+  const dirty = students.some((s) => (marks[s.id] ?? null) !== (saved[s.id] ?? null));
 
   function setAll(status: AttendanceStatus) {
     const next: Record<string, AttendanceStatus> = { ...marks };
@@ -64,7 +65,7 @@ export function AttendanceBoard({
   }
 
   function reset() {
-    setMarks(initialMarks);
+    setMarks(saved);
     setMessage(null);
   }
 
@@ -83,14 +84,15 @@ export function AttendanceBoard({
     data.set("marks", JSON.stringify(payload));
     start(async () => {
       const result = await markAttendanceAction(data);
-      setMessage(
-        result?.error
-          ? { text: result.error, ok: false }
-          : {
-              text: `Saved ${payload.length} students for ${formatDisplayDate(date)}.`,
-              ok: true,
-            },
-      );
+      if (result?.error) {
+        setMessage({ text: result.error, ok: false });
+        return;
+      }
+      setSaved(marks);
+      setMessage({
+        text: `Saved ${payload.length} students for ${formatDisplayDate(date)}.`,
+        ok: true,
+      });
     });
   }
 
@@ -187,9 +189,9 @@ export function AttendanceBoard({
                 <span className="w-6 shrink-0 text-sm text-muted">{index + 1}</span>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{student.name}</p>
-                  {student.existing ? (
+                  {saved[student.id] ? (
                     <p className="text-xs text-muted">
-                      Saved as {student.existing.toLowerCase()}
+                      Saved as {saved[student.id].toLowerCase()}
                     </p>
                   ) : (
                     <p className="text-xs text-muted">Not marked</p>
