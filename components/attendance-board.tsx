@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import type { AttendanceStatus } from "@/lib/types";
 import { markAttendanceAction } from "@/app/actions/attendance";
+import { formatDisplayDate } from "@/lib/dates";
 
 type Student = {
   id: string;
@@ -85,7 +86,10 @@ export function AttendanceBoard({
       setMessage(
         result?.error
           ? { text: result.error, ok: false }
-          : { text: `Saved ${payload.length} students.`, ok: true },
+          : {
+              text: `Saved ${payload.length} students for ${formatDisplayDate(date)}.`,
+              ok: true,
+            },
       );
     });
   }
