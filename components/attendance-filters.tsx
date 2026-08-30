@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { addDays, todayISO } from "@/lib/dates";
+import { addDays, formatDisplayDate, todayISO } from "@/lib/dates";
 import { Field, inputClass } from "./ui";
 import type { Group } from "@/lib/types";
 
@@ -10,10 +10,12 @@ export function AttendanceFilters({
   groups,
   date,
   groupId,
+  markedDates,
 }: {
   groups: Group[];
   date: string;
   groupId: string;
+  markedDates: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -87,6 +89,28 @@ export function AttendanceFilters({
           Next day
         </button>
       </div>
+
+      {markedDates.length ? (
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="text-sm text-muted">Days with attendance already saved</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {markedDates.map((marked) => (
+              <button
+                key={marked}
+                type="button"
+                onClick={() => go({ date: marked })}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                  marked === date
+                    ? "border-primary bg-primary text-white"
+                    : "border-line bg-white hover:bg-off-white"
+                }`}
+              >
+                {formatDisplayDate(marked)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

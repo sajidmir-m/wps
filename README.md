@@ -31,6 +31,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 3. Open the Supabase SQL Editor and run each file in `supabase/migrations/` in order:
    - `001_schema.sql` — tables, row-level security, and the new-user trigger
    - `002_student_credentials.sql` — admin-only table holding each student's generated password
+   - `003_exams.sql` — exams, question bank, one attempt per student, and the violation log
 4. Install dependencies and start the app:
 
 ```bash
@@ -70,6 +71,53 @@ Supabase only stores a password hash, so the readable copy lives in the admin-on
 ## Attendance and reports
 
 Attendance is recorded per date — pick a date, mark each student, save. Admin → **Reports** shows a day-by-day summary plus each student's average, streak, and present/late/absent totals across every recorded day.
+
+## Exams
+
+Admin → **Exams** → create an exam, set the duration and marking, paste the questions, then **Publish to students**.
+
+Questions are pasted in bulk, in either of two formats. The paste box detects which one you used.
+
+**Answer key style** — numbered questions with lettered options and an `Answer:` line. Markdown headings and `---` dividers are ignored, so a whole paper can be pasted unchanged:
+
+```
+### 1. What is the Internet?
+
+A. A collection of only websites
+B. A global network of interconnected computers
+C. A programming language
+D. A browser
+
+**Answer: B**
+```
+
+**Starred style** — a blank line between questions, the question on the first line, options underneath, and a `*` on the correct one:
+
+```
+Which instrument measures shaft diameter accurately?
+Try square
+*Vernier caliper
+Spirit level
+Measuring tape
+```
+
+Either way, a malformed question is reported by number rather than imported silently.
+
+**Marking.** Each correct answer scores the "marks per correct" value and each wrong answer subtracts the penalty. Blank answers score zero, so guessing is discouraged. Defaults are +1 and −0.25.
+
+**Every paper is different.** Question order and option order are shuffled per student when they press Start, and that layout is stored, so refreshing the page shows the same paper with answers intact. Correct answers are never sent to the browser — the paper is stripped on the server.
+
+**One attempt only.** A `UNIQUE (exam_id, student_id)` constraint enforces this in the database, not just in the app. A terminated attempt still occupies the row, so the exam cannot be restarted.
+
+**Leaving the window ends the exam.** Switching tabs, minimising, or moving to another app is detected and the attempt is terminated immediately: whatever was answered is graded, the paper is locked, and the student sees a terminated screen. Copy attempts and right-clicks are blocked and logged, but do not end the exam.
+
+**Watching it live.** Admin → **Exams** → **Monitor** refreshes every 8 seconds and shows who is writing, who has submitted, who was terminated, and every alert as it happens. Press **Turn alarm on** for an audible alert when a student leaves their window; browsers require that click before any page may play sound. Unread alerts also appear as a red banner on the admin dashboard.
+
+**If someone is terminated unfairly**, use **Allow retake** on the monitor to clear their attempt so they can sit the exam again.
+
+**Marks** stay hidden from students until you **Close exam**, so nobody can compare answers while others are still writing.
+
+**Results.** Exams → **Results** shows a merit list ranked by score, with each student's correct, wrong and blank counts, percentage, and pass or fail. The pass mark is 40% of the paper's total. Students who never started are listed at the bottom as "Did not appear", and terminated attempts are labelled as such rather than silently marked fail. **Export PDF** produces a signed result sheet in the same A4 layout as the attendance report. The admin dashboard also carries a summary row per exam: appeared, passed, and class average.
 
 ## White theme & buttons
 

@@ -9,12 +9,14 @@ import {
   MessageSquareText,
   Users,
   ClipboardList,
+  FileCheck2,
 } from "lucide-react";
 import Link from "next/link";
 
 const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/attendance", label: "Attendance", icon: CalendarCheck },
+  { href: "/admin/exams", label: "Exams", icon: FileCheck2 },
   { href: "/admin/lessons", label: "Lessons", icon: BookOpen },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/credentials", label: "Student logins", icon: KeyRound },
@@ -25,6 +27,7 @@ const adminLinks = [
 const studentLinks = [
   { href: "/student", label: "My dashboard", icon: LayoutDashboard },
   { href: "/student/attendance", label: "My attendance", icon: CalendarCheck },
+  { href: "/student/exams", label: "Exams", icon: FileCheck2 },
   { href: "/student/lessons", label: "Lessons", icon: BookOpen },
   { href: "/student/comments", label: "Ask / feedback", icon: MessageSquareText },
 ];

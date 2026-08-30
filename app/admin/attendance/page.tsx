@@ -26,15 +26,21 @@ export default async function AttendancePage({
     .order("name", { ascending: true });
   if (groupId) studentsQuery = studentsQuery.eq("group_id", groupId);
 
-  const [groupsData, studentsData, attendanceData] = await Promise.all([
+  const [groupsData, studentsData, attendanceData, markedData] = await Promise.all([
     supabaseAdmin.from("groups").select("id, name").order("name", { ascending: true }),
     studentsQuery,
     supabaseAdmin.from("attendance").select("student_id, status").eq("date", date),
+    supabaseAdmin.from("attendance").select("date").order("date", { ascending: false }).limit(3000),
   ]);
 
   const groups = (groupsData.data || []) as Group[];
   const allStudents = (studentsData.data || []) as Profile[];
   const attendance = (attendanceData.data || []) as AttendanceRecord[];
+
+  const markedDates = [
+    ...new Set(((markedData.data || []) as { date: string }[]).map((row) => row.date)),
+  ].slice(0, 12);
+  const lastMarked = markedDates.find((marked) => marked !== date) ?? null;
 
   const students = allStudents
     .filter((s) => (groupId ? s.group_id === groupId : true))
@@ -55,7 +61,12 @@ export default async function AttendancePage({
       subtitle="Pick a date, mark each student, and save. Each date is stored separately."
     >
       <Card>
-        <AttendanceFilters groups={groups} date={date} groupId={groupId} />
+        <AttendanceFilters
+          groups={groups}
+          date={date}
+          groupId={groupId}
+          markedDates={markedDates}
+        />
         <p className="mt-3 text-sm text-muted">
           {students.length} students ·{" "}
           {savedCount > 0
@@ -72,6 +83,16 @@ export default async function AttendancePage({
             {date === todayISO() ? " · today" : ""}
           </span>
         </div>
+
+        {savedCount === 0 ? (
+          <p className="mb-4 rounded-xl bg-off-white px-4 py-3 text-sm text-muted">
+            No attendance was ever saved for {formatDisplayDate(date)}, so every student below
+            starts unmarked.
+            {lastMarked
+              ? ` The last day you marked was ${formatDisplayDate(lastMarked)}.`
+              : ""}
+          </p>
+        ) : null}
         <AttendanceBoard key={`${date}-${groupId}`} date={date} students={students} />
       </Card>
     </Shell>

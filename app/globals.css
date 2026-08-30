@@ -92,10 +92,35 @@ button:disabled,
 
 @media print {
   @page {
-    margin: 12mm;
+    size: A4 portrait;
+    margin: 14mm 12mm;
   }
 
   body {
     background: #fff;
+  }
+
+  /* Status swatches and totals lose their meaning if the browser drops
+     background colours to save ink. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Repeat table headings on every page of a long roll. */
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  .print-keep {
+    break-inside: avoid;
+  }
+
+  .print-break {
+    break-before: page;
   }
 }

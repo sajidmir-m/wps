@@ -78,6 +78,15 @@ export default async function ReportsPage() {
           : "No attendance recorded yet"
       }
     >
+      <div className="mb-6 flex flex-wrap gap-3">
+        <Link
+          href="/admin/reports/print"
+          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-dark"
+        >
+          Export PDF
+        </Link>
+      </div>
+
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Card>
           <p className="text-xs uppercase tracking-wide text-muted">Days recorded</p>
