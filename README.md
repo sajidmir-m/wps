@@ -32,6 +32,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    - `001_schema.sql` — tables, row-level security, and the new-user trigger
    - `002_student_credentials.sql` — admin-only table holding each student's generated password
    - `003_exams.sql` — exams, question bank, one attempt per student, and the violation log
+   - `004_exam_security.sql` — tighter RLS and answer-key integrity checks
 4. Install dependencies and start the app:
 
 ```bash
@@ -109,7 +110,9 @@ Either way, a malformed question is reported by number rather than imported sile
 
 **One attempt only.** A `UNIQUE (exam_id, student_id)` constraint enforces this in the database, not just in the app. A terminated attempt still occupies the row, so the exam cannot be restarted.
 
-**Leaving the window ends the exam.** Switching tabs, minimising, or moving to another app is detected and the attempt is terminated immediately: whatever was answered is graded, the paper is locked, and the student sees a terminated screen. Copy attempts and right-clicks are blocked and logged, but do not end the exam.
+**Leaving the window ends the exam.** Switching tabs, minimising, or moving to another app is detected and the attempt is terminated immediately: whatever was answered is graded, the paper is locked, and the student sees a terminated screen. Copy, cut, paste, print, right-click, and DevTools shortcuts are blocked and logged. A short settle period at the start avoids false terminations from the fullscreen prompt.
+
+**Server-side security.** The timer is enforced on the server, not only in the browser — saving or submitting after `ends_at` auto-locks the paper. Answers are sanitised against the real question bank so forged option indexes are dropped. Finish updates are atomic (`status = IN_PROGRESS` only), so double-submit races cannot overwrite a terminated paper. Correct answers are never selected into the student page payload. Suspended students cannot start. One attempt is enforced by a database unique constraint.
 
 **Watching it live.** Admin → **Exams** → **Monitor** refreshes every 8 seconds and shows who is writing, who has submitted, who was terminated, and every alert as it happens. Press **Turn alarm on** for an audible alert when a student leaves their window; browsers require that click before any page may play sound. Unread alerts also appear as a red banner on the admin dashboard.
 

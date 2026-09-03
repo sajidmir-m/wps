@@ -3,13 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, getSession } from "@/lib/auth";
-import { buildPaper, gradeAttempt, parseQuestions } from "@/lib/exam";
+import { buildPaper, gradeAttempt, parseQuestions, sanitizeAnswers } from "@/lib/exam";
 import type { ExamQuestion, ExamAttempt, ExamStatus } from "@/lib/types";
 
 function refresh() {
   revalidatePath("/admin", "layout");
   revalidatePath("/student", "layout");
 }
+
+const TERMINATING_KINDS = new Set([
+  "TAB_HIDDEN",
+  "WINDOW_BLUR",
+  "FULLSCREEN_EXIT",
+]);
 
 /* ---------------------------------------------------------------- admin --- */
 
@@ -20,14 +26,27 @@ export async function createExamAction(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   if (!title) return { error: "Give the exam a title." };
 
+  const duration = Number(formData.get("duration") || 30);
+  const marksCorrect = Number(formData.get("marksCorrect") || 1);
+  const marksWrong = Number(formData.get("marksWrong") || 0.25);
+  if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
+    return { error: "Duration must be between 1 and 300 minutes." };
+  }
+  if (!Number.isFinite(marksCorrect) || marksCorrect <= 0) {
+    return { error: "Marks per correct answer must be greater than zero." };
+  }
+  if (!Number.isFinite(marksWrong) || marksWrong < 0) {
+    return { error: "Penalty cannot be negative." };
+  }
+
   const { data, error } = await supabaseAdmin
     .from("exams")
     .insert({
       title,
       instructions: String(formData.get("instructions") || "").trim() || null,
-      duration_minutes: Number(formData.get("duration") || 30),
-      marks_correct: Number(formData.get("marksCorrect") || 1),
-      marks_wrong: Number(formData.get("marksWrong") || 0.25),
+      duration_minutes: duration,
+      marks_correct: marksCorrect,
+      marks_wrong: marksWrong,
       group_id: String(formData.get("groupId") || "") || null,
       created_by: admin.id,
     })
@@ -47,14 +66,21 @@ export async function updateExamAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (!id) return { error: "Missing exam." };
 
+  const duration = Number(formData.get("duration") || 30);
+  const marksCorrect = Number(formData.get("marksCorrect") || 1);
+  const marksWrong = Number(formData.get("marksWrong") || 0.25);
+  if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
+    return { error: "Duration must be between 1 and 300 minutes." };
+  }
+
   const { error } = await supabaseAdmin
     .from("exams")
     .update({
       title: String(formData.get("title") || "").trim(),
       instructions: String(formData.get("instructions") || "").trim() || null,
-      duration_minutes: Number(formData.get("duration") || 30),
-      marks_correct: Number(formData.get("marksCorrect") || 1),
-      marks_wrong: Number(formData.get("marksWrong") || 0.25),
+      duration_minutes: duration,
+      marks_correct: marksCorrect,
+      marks_wrong: marksWrong,
       group_id: String(formData.get("groupId") || "") || null,
     })
     .eq("id", id);
@@ -169,6 +195,9 @@ export async function acknowledgeViolationsAction(formData: FormData) {
 async function loadOwnAttempt(attemptId: string) {
   const session = await getSession();
   if (!session || session.role !== "STUDENT") return { error: "Students only." as const };
+  if (session.subscription !== "ACTIVE") {
+    return { error: "Your account is not active. Speak to your invigilator." as const };
+  }
 
   const { data } = await supabaseAdmin
     .from("exam_attempts")
@@ -181,12 +210,121 @@ async function loadOwnAttempt(attemptId: string) {
   // Never trust the id coming from the browser on its own.
   if (attempt.student_id !== session.id) return { error: "Not your attempt." as const };
 
-  return { attempt };
+  return { attempt, session };
+}
+
+async function loadExamQuestions(examId: string) {
+  const { data } = await supabaseAdmin.from("exam_questions").select("*").eq("exam_id", examId);
+  return (data || []) as ExamQuestion[];
+}
+
+function parseClientAnswers(raw: FormDataEntryValue | null): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(String(raw || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Grades and locks an attempt only if it is still IN_PROGRESS. The status
+ * filter makes double-submit / terminate races safe: only the first writer wins.
+ */
+async function finishAttempt(
+  attempt: ExamAttempt,
+  answers: Record<string, number>,
+  outcome:
+    | { status: "SUBMITTED"; reason?: string }
+    | { status: "TERMINATED"; reason: string },
+) {
+  const [{ data: questionRows }, { data: exam }] = await Promise.all([
+    supabaseAdmin.from("exam_questions").select("*").eq("exam_id", attempt.exam_id),
+    supabaseAdmin
+      .from("exams")
+      .select("marks_correct, marks_wrong")
+      .eq("id", attempt.exam_id)
+      .single(),
+  ]);
+
+  const questions = (questionRows || []) as ExamQuestion[];
+  const clean = sanitizeAnswers(questions, answers);
+  const result = gradeAttempt(
+    questions,
+    clean,
+    Number(exam?.marks_correct ?? 1),
+    Number(exam?.marks_wrong ?? 0.25),
+  );
+
+  const now = new Date().toISOString();
+  const { data: updated } = await supabaseAdmin
+    .from("exam_attempts")
+    .update({
+      answers: clean,
+      status: outcome.status,
+      submitted_at: outcome.status === "SUBMITTED" ? now : null,
+      terminated_at: outcome.status === "TERMINATED" ? now : null,
+      termination_reason:
+        outcome.status === "TERMINATED"
+          ? outcome.reason
+          : outcome.reason === "TIME_UP"
+            ? "TIME_UP"
+            : null,
+      score: result.score,
+      correct_count: result.correct,
+      wrong_count: result.wrong,
+      unanswered_count: result.unanswered,
+    })
+    .eq("id", attempt.id)
+    .eq("status", "IN_PROGRESS")
+    .select("id")
+    .maybeSingle();
+
+  return { result, locked: Boolean(updated) };
+}
+
+/** If the clock has run out, lock the paper as submitted. Called on every write. */
+async function enforceDeadline(attempt: ExamAttempt, answers: Record<string, number>) {
+  if (attempt.status !== "IN_PROGRESS") return { attempt, expired: false };
+  if (new Date(attempt.ends_at).getTime() > Date.now()) return { attempt, expired: false };
+
+  await finishAttempt(attempt, Object.keys(answers).length ? answers : attempt.answers ?? {}, {
+    status: "SUBMITTED",
+    reason: "TIME_UP",
+  });
+
+  const { data } = await supabaseAdmin
+    .from("exam_attempts")
+    .select("*")
+    .eq("id", attempt.id)
+    .single();
+
+  return { attempt: (data as ExamAttempt) ?? attempt, expired: true };
+}
+
+/**
+ * Used when a student reopens an expired IN_PROGRESS attempt. Grades whatever
+ * was last saved on the server so the paper cannot stay open forever.
+ */
+export async function expireAttemptIfNeeded(attemptId: string) {
+  const loaded = await loadOwnAttempt(attemptId);
+  if ("error" in loaded) return { error: loaded.error };
+
+  const { attempt, expired } = await enforceDeadline(
+    loaded.attempt,
+    loaded.attempt.answers ?? {},
+  );
+
+  if (expired) refresh();
+  return { ok: true, status: attempt.status, expired };
 }
 
 export async function startExamAction(formData: FormData) {
   const session = await getSession();
   if (!session || session.role !== "STUDENT") return { error: "Students only." };
+  if (session.subscription !== "ACTIVE") {
+    return { error: "Your account is not active. Speak to your invigilator." };
+  }
 
   const examId = String(formData.get("examId") || "");
   if (!examId) return { error: "Missing exam." };
@@ -205,19 +343,14 @@ export async function startExamAction(formData: FormData) {
 
   const { data: existing } = await supabaseAdmin
     .from("exam_attempts")
-    .select("id")
+    .select("id, status")
     .eq("exam_id", examId)
     .eq("student_id", session.id)
     .maybeSingle();
 
   if (existing) return { error: "You have already taken this exam." };
 
-  const { data: questionRows } = await supabaseAdmin
-    .from("exam_questions")
-    .select("*")
-    .eq("exam_id", examId);
-
-  const questions = (questionRows || []) as ExamQuestion[];
+  const questions = await loadExamQuestions(examId);
   if (!questions.length) return { error: "This exam has no questions yet." };
 
   const { order, optionOrders } = buildPaper(questions);
@@ -243,58 +376,24 @@ export async function saveAnswersAction(formData: FormData) {
   const attemptId = String(formData.get("attemptId") || "");
   const loaded = await loadOwnAttempt(attemptId);
   if ("error" in loaded) return { error: loaded.error };
-  if (loaded.attempt.status !== "IN_PROGRESS") return { error: "This exam is closed." };
 
-  let answers: Record<string, number>;
-  try {
-    answers = JSON.parse(String(formData.get("answers") || "{}"));
-  } catch {
-    return { error: "Could not read the answers." };
+  const questions = await loadExamQuestions(loaded.attempt.exam_id);
+  const answers = sanitizeAnswers(questions, parseClientAnswers(formData.get("answers")));
+
+  const { attempt, expired } = await enforceDeadline(loaded.attempt, answers);
+  if (expired) {
+    refresh();
+    return { error: "Time is up. Your exam has been submitted.", expired: true };
   }
+  if (attempt.status !== "IN_PROGRESS") return { error: "This exam is closed." };
 
-  await supabaseAdmin.from("exam_attempts").update({ answers }).eq("id", attemptId);
-  return { ok: true };
-}
-
-async function finishAttempt(
-  attempt: ExamAttempt,
-  answers: Record<string, number>,
-  outcome: { status: "SUBMITTED" } | { status: "TERMINATED"; reason: string },
-) {
-  const [{ data: questionRows }, { data: exam }] = await Promise.all([
-    supabaseAdmin.from("exam_questions").select("*").eq("exam_id", attempt.exam_id),
-    supabaseAdmin
-      .from("exams")
-      .select("marks_correct, marks_wrong")
-      .eq("id", attempt.exam_id)
-      .single(),
-  ]);
-
-  const questions = (questionRows || []) as ExamQuestion[];
-  const result = gradeAttempt(
-    questions,
-    answers,
-    Number(exam?.marks_correct ?? 1),
-    Number(exam?.marks_wrong ?? 0.25),
-  );
-
-  const now = new Date().toISOString();
   await supabaseAdmin
     .from("exam_attempts")
-    .update({
-      answers,
-      status: outcome.status,
-      submitted_at: outcome.status === "SUBMITTED" ? now : null,
-      terminated_at: outcome.status === "TERMINATED" ? now : null,
-      termination_reason: outcome.status === "TERMINATED" ? outcome.reason : null,
-      score: result.score,
-      correct_count: result.correct,
-      wrong_count: result.wrong,
-      unanswered_count: result.unanswered,
-    })
-    .eq("id", attempt.id);
+    .update({ answers })
+    .eq("id", attemptId)
+    .eq("status", "IN_PROGRESS");
 
-  return result;
+  return { ok: true };
 }
 
 export async function submitExamAction(formData: FormData) {
@@ -305,14 +404,13 @@ export async function submitExamAction(formData: FormData) {
   const attempt = loaded.attempt;
   if (attempt.status !== "IN_PROGRESS") return { error: "This exam is already finished." };
 
-  let answers: Record<string, number>;
-  try {
-    answers = JSON.parse(String(formData.get("answers") || "{}"));
-  } catch {
-    answers = attempt.answers ?? {};
-  }
+  const questions = await loadExamQuestions(attempt.exam_id);
+  const answers = sanitizeAnswers(questions, parseClientAnswers(formData.get("answers")));
+  // Prefer client answers, but fall back to the last saved server copy if the
+  // payload is empty (e.g. auto-submit after a crash).
+  const merged = Object.keys(answers).length ? answers : (attempt.answers ?? {});
 
-  await finishAttempt(attempt, answers, { status: "SUBMITTED" });
+  await finishAttempt(attempt, merged, { status: "SUBMITTED" });
 
   refresh();
   return { ok: true };
@@ -329,11 +427,10 @@ export async function reportViolationAction(formData: FormData) {
   if ("error" in loaded) return { error: loaded.error };
 
   const attempt = loaded.attempt;
-  const kind = String(formData.get("kind") || "UNKNOWN");
-  const detail = String(formData.get("detail") || "") || null;
-  // Copy attempts and right-clicks are worth showing the admin but are not
-  // grounds for ending the paper; only leaving the window is.
-  const shouldTerminate = String(formData.get("terminate") || "1") === "1";
+  const kind = String(formData.get("kind") || "UNKNOWN").slice(0, 40);
+  const detail = String(formData.get("detail") || "").slice(0, 500) || null;
+  const requestedTerminate = String(formData.get("terminate") || "1") === "1";
+  const shouldTerminate = requestedTerminate && TERMINATING_KINDS.has(kind);
 
   await supabaseAdmin.from("exam_violations").insert({
     attempt_id: attempt.id,
@@ -353,15 +450,37 @@ export async function reportViolationAction(formData: FormData) {
     return { ok: true, terminated: true };
   }
 
-  let answers: Record<string, number>;
-  try {
-    answers = JSON.parse(String(formData.get("answers") || "{}"));
-  } catch {
-    answers = attempt.answers ?? {};
-  }
+  const questions = await loadExamQuestions(attempt.exam_id);
+  const answers = sanitizeAnswers(questions, parseClientAnswers(formData.get("answers")));
+  const merged = Object.keys(answers).length ? answers : (attempt.answers ?? {});
 
-  await finishAttempt(attempt, answers, { status: "TERMINATED", reason: kind });
+  await finishAttempt(attempt, merged, { status: "TERMINATED", reason: kind });
 
   refresh();
   return { ok: true, terminated: true };
+}
+
+/** Lightweight poll so the exam window notices a remote lock (time-up / terminate). */
+export async function examHeartbeatAction(formData: FormData) {
+  const attemptId = String(formData.get("attemptId") || "");
+  const loaded = await loadOwnAttempt(attemptId);
+  if ("error" in loaded) return { error: loaded.error };
+
+  const questions = await loadExamQuestions(loaded.attempt.exam_id);
+  const answers = sanitizeAnswers(questions, parseClientAnswers(formData.get("answers")));
+
+  const { attempt, expired } = await enforceDeadline(
+    loaded.attempt,
+    Object.keys(answers).length ? answers : loaded.attempt.answers ?? {},
+  );
+
+  if (expired) refresh();
+
+  return {
+    ok: true,
+    status: attempt.status,
+    endsAt: attempt.ends_at,
+    expired,
+    terminated: attempt.status === "TERMINATED",
+  };
 }

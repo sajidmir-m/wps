@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Clock, Maximize } from "lucide-react";
-import { reportViolationAction, saveAnswersAction, submitExamAction } from "@/app/actions/exam";
+import {
+  examHeartbeatAction,
+  reportViolationAction,
+  saveAnswersAction,
+  submitExamAction,
+} from "@/app/actions/exam";
 import { violationLabel } from "@/lib/exam";
 import type { PaperQuestion } from "@/lib/types";
 
@@ -12,6 +17,18 @@ function formatClock(ms: number) {
   const minutes = String(Math.floor(total / 60)).padStart(2, "0");
   const seconds = String(total % 60).padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+/** Shortcuts that open DevTools, view-source, print, or save — all blocked. */
+function isBlockedShortcut(event: KeyboardEvent) {
+  const key = event.key.toLowerCase();
+  if (key === "f12") return true;
+  if (event.ctrlKey || event.metaKey) {
+    if (event.shiftKey && ["i", "j", "c", "k"].includes(key)) return true;
+    if (["u", "p", "s"].includes(key)) return true;
+    if (key === "c" || key === "x" || key === "v" || key === "a") return true;
+  }
+  return false;
 }
 
 export function ExamWindow({
@@ -40,19 +57,30 @@ export function ExamWindow({
   const [terminatedBy, setTerminatedBy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(false);
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
   // Guards every exit path so a tab switch during submit cannot fire twice.
   const finishedRef = useRef(false);
+  // Ignore blur/visibility for a short window after fullscreen or start.
+  const ignoreUntilRef = useRef(0);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const endsAtMs = useMemo(() => new Date(endsAt).getTime(), [endsAt]);
   const current = questions[index];
   const answeredCount = questions.filter((q) => answers[q.id] !== undefined).length;
 
+  const ignoreBriefly = useCallback((ms = 2500) => {
+    ignoreUntilRef.current = Date.now() + ms;
+  }, []);
+
   const terminate = useCallback(
     (kind: string) => {
       if (finishedRef.current) return;
+      if (Date.now() < ignoreUntilRef.current) return;
+      if (!armed) return;
+
       finishedRef.current = true;
       setTerminatedBy(kind);
 
@@ -63,12 +91,12 @@ export function ExamWindow({
       data.set("answers", JSON.stringify(answersRef.current));
       void reportViolationAction(data).then(() => router.refresh());
     },
-    [attemptId, router],
+    [attemptId, router, armed],
   );
 
   const logOnly = useCallback(
     (kind: string) => {
-      if (finishedRef.current) return;
+      if (finishedRef.current || !armed) return;
       const data = new FormData();
       data.set("attemptId", attemptId);
       data.set("kind", kind);
@@ -76,21 +104,30 @@ export function ExamWindow({
       data.set("answers", JSON.stringify(answersRef.current));
       void reportViolationAction(data);
     },
-    [attemptId],
+    [attemptId, armed],
   );
 
   const submit = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setBusy(true);
+    ignoreBriefly(10_000);
 
     const data = new FormData();
     data.set("attemptId", attemptId);
     data.set("answers", JSON.stringify(answersRef.current));
     void submitExamAction(data).then(() => router.refresh());
-  }, [attemptId, router]);
+  }, [attemptId, router, ignoreBriefly]);
 
-  // Countdown, and hand the paper in automatically when time runs out.
+  // Arm anti-cheat after a settle period so fullscreen prompts / first paint
+  // do not instantly kill a genuine start.
+  useEffect(() => {
+    ignoreBriefly(3000);
+    const timer = setTimeout(() => setArmed(true), 3000);
+    return () => clearTimeout(timer);
+  }, [ignoreBriefly]);
+
+  // Countdown. Server also enforces ends_at — this is only the UI clock.
   useEffect(() => {
     const tick = () => {
       const left = endsAtMs - Date.now();
@@ -102,23 +139,108 @@ export function ExamWindow({
     return () => clearInterval(timer);
   }, [endsAtMs, submit]);
 
-  // Leaving the exam window ends the attempt. `visibilitychange` catches tab
-  // switches and minimising; `blur` catches moving to another application.
+  // Heartbeat: sync answers, auto-submit if time is up on the server, and
+  // notice if the attempt was terminated elsewhere.
+  useEffect(() => {
+    const beat = () => {
+      if (finishedRef.current) return;
+      const data = new FormData();
+      data.set("attemptId", attemptId);
+      data.set("answers", JSON.stringify(answersRef.current));
+      void examHeartbeatAction(data).then((result) => {
+        if (!result || result.error) return;
+        if (result.terminated) {
+          finishedRef.current = true;
+          setTerminatedBy("TAB_HIDDEN");
+          router.refresh();
+          return;
+        }
+        if (result.expired) {
+          finishedRef.current = true;
+          setBusy(true);
+          router.refresh();
+        }
+      });
+    };
+
+    const timer = setInterval(beat, 20_000);
+    return () => clearInterval(timer);
+  }, [attemptId, router]);
+
+  // Anti-cheat listeners.
   useEffect(() => {
     if (terminatedBy) return;
 
     const onVisibility = () => {
       if (document.hidden) terminate("TAB_HIDDEN");
     };
-    const onBlur = () => terminate("WINDOW_BLUR");
+
+    // Blur alone is noisy (OS toasts, password prompts). Only terminate if
+    // focus stays away for a short grace period.
+    const onBlur = () => {
+      if (finishedRef.current || !armed) return;
+      if (Date.now() < ignoreUntilRef.current) return;
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = setTimeout(() => {
+        if (document.hidden || !document.hasFocus()) {
+          terminate("WINDOW_BLUR");
+        }
+      }, 1200);
+    };
+
+    const onFocus = () => {
+      if (blurTimerRef.current) {
+        clearTimeout(blurTimerRef.current);
+        blurTimerRef.current = null;
+      }
+    };
+
+    const onFullscreen = () => {
+      if (!document.fullscreenElement && armed) {
+        // Leaving fullscreen is logged but does not end the paper — some
+        // browsers exit fullscreen on their own when a dialog opens.
+        logOnly("FULLSCREEN_EXIT");
+      }
+    };
+
     const onContextMenu = (event: MouseEvent) => {
       event.preventDefault();
       logOnly("CONTEXT_MENU");
     };
+
     const onCopy = (event: ClipboardEvent) => {
       event.preventDefault();
       logOnly("COPY");
     };
+
+    const onCut = (event: ClipboardEvent) => {
+      event.preventDefault();
+      logOnly("CUT");
+    };
+
+    const onPaste = (event: ClipboardEvent) => {
+      event.preventDefault();
+      logOnly("PASTE");
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isBlockedShortcut(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const key = event.key.toLowerCase();
+      if (key === "f12" || ((event.ctrlKey || event.metaKey) && event.shiftKey)) {
+        logOnly("DEVTOOLS");
+      } else if (key === "p") {
+        logOnly("PRINT");
+      } else if (key === "c") {
+        logOnly("COPY");
+      } else if (key === "x") {
+        logOnly("CUT");
+      } else if (key === "v") {
+        logOnly("PASTE");
+      }
+    };
+
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (finishedRef.current) return;
       event.preventDefault();
@@ -127,35 +249,51 @@ export function ExamWindow({
 
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("fullscreenchange", onFullscreen);
     document.addEventListener("contextmenu", onContextMenu);
     document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    document.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("beforeunload", onBeforeUnload);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("fullscreenchange", onFullscreen);
       document.removeEventListener("contextmenu", onContextMenu);
       document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+      document.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("beforeunload", onBeforeUnload);
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     };
-  }, [terminate, logOnly, terminatedBy]);
+  }, [terminate, logOnly, terminatedBy, armed]);
 
-  // Keep the server copy close to the student's screen without a round trip
-  // on every click.
+  // Autosave answers to the server.
   useEffect(() => {
     if (finishedRef.current) return;
     const timer = setTimeout(() => {
       const data = new FormData();
       data.set("attemptId", attemptId);
       data.set("answers", JSON.stringify(answersRef.current));
-      void saveAnswersAction(data);
+      void saveAnswersAction(data).then((result) => {
+        if (result?.expired) {
+          finishedRef.current = true;
+          setBusy(true);
+          router.refresh();
+        }
+      });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [answers, attemptId]);
+  }, [answers, attemptId, router]);
 
   if (terminatedBy) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white p-6 select-none">
         <div className="max-w-lg text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-light">
             <AlertTriangle className="text-danger" size={30} />
@@ -180,7 +318,7 @@ export function ExamWindow({
   const lowTime = remaining !== null && remaining < 60_000;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-white">
+    <div className="fixed inset-0 z-40 flex flex-col bg-white select-none">
       <header className="flex flex-wrap items-center gap-4 border-b border-line px-5 py-3">
         <div className="min-w-0">
           <h1 className="font-display truncate text-xl">{title}</h1>
@@ -200,7 +338,10 @@ export function ExamWindow({
 
         <button
           type="button"
-          onClick={() => document.documentElement.requestFullscreen?.()}
+          onClick={() => {
+            ignoreBriefly(4000);
+            void document.documentElement.requestFullscreen?.().catch(() => undefined);
+          }}
           className="rounded-lg border border-line px-3 py-2 text-sm font-medium hover:bg-off-white"
         >
           <Maximize size={14} className="mr-1.5 inline" />
@@ -220,6 +361,7 @@ export function ExamWindow({
       <div className="flex items-center gap-2 border-b border-warning-light bg-warning-light px-5 py-2 text-sm text-warning">
         <AlertTriangle size={15} />
         Do not switch tabs, minimise, or open another app. The exam ends immediately if you do.
+        {!armed ? " · Securing window…" : ""}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col-reverse lg:flex-row">

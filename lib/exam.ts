@@ -224,6 +224,30 @@ export function toPaperQuestions(
   });
 }
 
+/**
+ * Drops anything the browser is not allowed to send: unknown question ids,
+ * non-integer option indexes, and indexes outside that question's options.
+ * Without this a student could invent answers for questions they never saw.
+ */
+export function sanitizeAnswers(
+  questions: ExamQuestion[],
+  raw: Record<string, unknown>,
+): Record<string, number> {
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  const clean: Record<string, number> = {};
+
+  for (const [id, value] of Object.entries(raw ?? {})) {
+    const question = byId.get(id);
+    if (!question) continue;
+    const index = typeof value === "number" ? value : Number(value);
+    if (!Number.isInteger(index)) continue;
+    if (index < 0 || index >= question.options.length) continue;
+    clean[id] = index;
+  }
+
+  return clean;
+}
+
 export function gradeAttempt(
   questions: ExamQuestion[],
   answers: Record<string, number>,
@@ -327,7 +351,12 @@ export const VIOLATION_LABELS: Record<string, string> = {
   WINDOW_BLUR: "Moved focus to another app or window",
   FULLSCREEN_EXIT: "Left full screen",
   COPY: "Tried to copy the question paper",
+  PASTE: "Tried to paste into the exam",
+  CUT: "Tried to cut from the exam",
   CONTEXT_MENU: "Opened the right-click menu",
+  DEVTOOLS: "Tried to open developer tools",
+  PRINT: "Tried to print the question paper",
+  TIME_UP: "Time ran out",
 };
 
 export function violationLabel(kind: string) {
