@@ -90,7 +90,11 @@ button:disabled,
   cursor: not-allowed;
 }
 
-@media print {
+@media (max-width: 1023px) {
+  .safe-pb {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}
   @page {
     size: A4 portrait;
     margin: 14mm 12mm;

@@ -58,6 +58,7 @@ export function ExamWindow({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -317,22 +318,28 @@ export function ExamWindow({
 
   const lowTime = remaining !== null && remaining < 60_000;
 
+  function goTo(questionIndex: number) {
+    setIndex(questionIndex);
+    setPaletteOpen(false);
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-white select-none">
-      <header className="flex flex-wrap items-center gap-4 border-b border-line px-5 py-3">
-        <div className="min-w-0">
-          <h1 className="font-display truncate text-xl">{title}</h1>
-          <p className="text-xs text-muted">
+      <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display truncate text-base sm:text-xl">{title}</h1>
+          <p className="hidden text-xs text-muted sm:block">
             +{marksCorrect} per correct · −{marksWrong} per wrong · {questions.length} questions
           </p>
         </div>
 
         <div
-          className={`ml-auto flex items-center gap-2 rounded-xl px-4 py-2 font-mono text-lg font-medium ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-base font-medium sm:gap-2 sm:px-4 sm:py-2 sm:text-lg ${
             lowTime ? "bg-danger text-white" : "bg-off-white text-ink"
           }`}
         >
-          <Clock size={18} />
+          <Clock size={16} className="sm:hidden" />
+          <Clock size={18} className="hidden sm:block" />
           {remaining === null ? "--:--" : formatClock(remaining)}
         </div>
 
@@ -342,7 +349,7 @@ export function ExamWindow({
             ignoreBriefly(4000);
             void document.documentElement.requestFullscreen?.().catch(() => undefined);
           }}
-          className="rounded-lg border border-line px-3 py-2 text-sm font-medium hover:bg-off-white"
+          className="hidden rounded-lg border border-line px-3 py-2 text-sm font-medium hover:bg-off-white sm:inline-flex sm:items-center"
         >
           <Maximize size={14} className="mr-1.5 inline" />
           Full screen
@@ -352,22 +359,24 @@ export function ExamWindow({
           type="button"
           onClick={() => setConfirming(true)}
           disabled={busy}
-          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-60"
+          className="shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-60 sm:px-5"
         >
-          {busy ? "Submitting…" : "Submit exam"}
+          {busy ? "…" : "Submit"}
         </button>
       </header>
 
-      <div className="flex items-center gap-2 border-b border-warning-light bg-warning-light px-5 py-2 text-sm text-warning">
-        <AlertTriangle size={15} />
-        Do not switch tabs, minimise, or open another app. The exam ends immediately if you do.
-        {!armed ? " · Securing window…" : ""}
+      <div className="flex shrink-0 items-start gap-2 border-b border-warning-light bg-warning-light px-3 py-2 text-xs text-warning sm:items-center sm:px-5 sm:text-sm">
+        <AlertTriangle size={14} className="mt-0.5 shrink-0 sm:mt-0" />
+        <span>
+          Do not switch tabs or leave this window — the exam ends immediately.
+          {!armed ? " Securing…" : ""}
+        </span>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
-        <main className="flex-1 overflow-y-auto p-5 lg:p-8">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28 sm:p-5 lg:p-8 lg:pb-8">
           {instructions && index === 0 ? (
-            <p className="mb-5 rounded-xl bg-off-white px-4 py-3 text-sm text-muted">
+            <p className="mb-4 rounded-xl bg-off-white px-4 py-3 text-sm text-muted">
               {instructions}
             </p>
           ) : null}
@@ -376,8 +385,13 @@ export function ExamWindow({
             <div className="mx-auto max-w-3xl">
               <p className="text-sm font-medium text-muted">
                 Question {index + 1} of {questions.length}
+                <span className="ml-2 text-xs">
+                  · answered {answeredCount}/{questions.length}
+                </span>
               </p>
-              <h2 className="mt-2 text-xl font-medium leading-relaxed">{current.text}</h2>
+              <h2 className="mt-2 text-lg font-medium leading-relaxed sm:text-xl">
+                {current.text}
+              </h2>
 
               <div className="mt-5 space-y-3">
                 {current.options.map((option) => {
@@ -389,14 +403,14 @@ export function ExamWindow({
                       onClick={() =>
                         setAnswers((prev) => ({ ...prev, [current.id]: option.value }))
                       }
-                      className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left ${
+                      className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left text-sm sm:items-center sm:text-base ${
                         selected
                           ? "border-primary bg-primary-light font-medium"
                           : "border-line bg-white hover:bg-off-white"
                       }`}
                     >
                       <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 sm:mt-0 ${
                           selected ? "border-primary" : "border-line"
                         }`}
                       >
@@ -404,13 +418,30 @@ export function ExamWindow({
                           <span className="h-2.5 w-2.5 rounded-full bg-primary" />
                         ) : null}
                       </span>
-                      {option.label}
+                      <span className="min-w-0 break-words">{option.label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              {answers[current.id] !== undefined ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAnswers((prev) => {
+                      const next = { ...prev };
+                      delete next[current.id];
+                      return next;
+                    })
+                  }
+                  className="mt-4 text-sm font-medium text-muted hover:text-ink"
+                >
+                  Clear answer
+                </button>
+              ) : null}
+
+              {/* Desktop next/previous under the question */}
+              <div className="mt-6 hidden flex-wrap gap-3 lg:flex">
                 <button
                   type="button"
                   onClick={() => setIndex((i) => Math.max(0, i - 1))}
@@ -427,34 +458,20 @@ export function ExamWindow({
                 >
                   Next
                 </button>
-                {answers[current.id] !== undefined ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAnswers((prev) => {
-                        const next = { ...prev };
-                        delete next[current.id];
-                        return next;
-                      })
-                    }
-                    className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted hover:bg-off-white"
-                  >
-                    Clear answer
-                  </button>
-                ) : null}
               </div>
             </div>
           ) : null}
         </main>
 
-        <aside className="shrink-0 border-b border-line p-5 lg:w-72 lg:border-b-0 lg:border-l">
+        {/* Desktop side palette only */}
+        <aside className="hidden shrink-0 border-l border-line p-5 lg:block lg:w-72">
           <p className="text-sm font-medium">
             Answered {answeredCount} of {questions.length}
           </p>
           <p className="mt-1 text-xs text-muted">
             Blank answers score zero. Wrong answers lose {marksWrong} marks.
           </p>
-          <div className="mt-4 grid grid-cols-8 gap-1.5 lg:grid-cols-6">
+          <div className="mt-4 grid grid-cols-6 gap-1.5">
             {questions.map((question, questionIndex) => {
               const done = answers[question.id] !== undefined;
               const active = questionIndex === index;
@@ -462,8 +479,8 @@ export function ExamWindow({
                 <button
                   key={question.id}
                   type="button"
-                  onClick={() => setIndex(questionIndex)}
-                  className={`aspect-square rounded-lg text-xs font-medium ${
+                  onClick={() => goTo(questionIndex)}
+                  className={`flex h-9 items-center justify-center rounded-lg text-xs font-medium ${
                     active
                       ? "bg-ink text-white"
                       : done
@@ -478,6 +495,83 @@ export function ExamWindow({
           </div>
         </aside>
       </div>
+
+      {/* Mobile sticky Previous / Next / Jump */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white px-3 py-3 safe-pb lg:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            disabled={index === 0}
+            className="min-h-11 flex-1 rounded-xl border border-line px-3 py-2.5 text-sm font-medium disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="min-h-11 rounded-xl border border-line bg-off-white px-3 py-2.5 text-sm font-medium"
+          >
+            {index + 1}/{questions.length}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
+            disabled={index === questions.length - 1}
+            className="min-h-11 flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      {paletteOpen ? (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-ink/40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close question list"
+            className="flex-1"
+            onClick={() => setPaletteOpen(false)}
+          />
+          <div className="max-h-[70vh] overflow-y-auto rounded-t-2xl bg-white p-4 pb-8">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-medium">Jump to question</p>
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(false)}
+                className="text-sm font-medium text-muted"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-muted">
+              Answered {answeredCount} of {questions.length} · blank scores 0 · wrong −{marksWrong}
+            </p>
+            <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
+              {questions.map((question, questionIndex) => {
+                const done = answers[question.id] !== undefined;
+                const active = questionIndex === index;
+                return (
+                  <button
+                    key={question.id}
+                    type="button"
+                    onClick={() => goTo(questionIndex)}
+                    className={`flex h-9 items-center justify-center rounded-lg text-xs font-medium ${
+                      active
+                        ? "bg-ink text-white"
+                        : done
+                          ? "bg-success text-white"
+                          : "bg-off-white text-muted"
+                    }`}
+                  >
+                    {questionIndex + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {confirming ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-6">
