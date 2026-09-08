@@ -272,6 +272,52 @@ export function gradeAttempt(
   return { correct, wrong, unanswered, score, total };
 }
 
+export type AnswerReviewItem = {
+  number: number;
+  questionId: string;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  chosenIndex: number | null;
+  result: "correct" | "wrong" | "blank";
+};
+
+/** Builds a question-by-question review in the order that student saw the paper. */
+export function buildAnswerReview(
+  questions: ExamQuestion[],
+  answers: Record<string, number>,
+  questionOrder?: string[] | null,
+): AnswerReviewItem[] {
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  const order =
+    questionOrder && questionOrder.length
+      ? questionOrder.filter((id) => byId.has(id))
+      : questions.map((q) => q.id);
+
+  return order.flatMap((id, index) => {
+    const question = byId.get(id);
+    if (!question) return [];
+    const chosen = answers[id];
+    const chosenIndex =
+      chosen === undefined || chosen === null || !Number.isInteger(chosen) ? null : chosen;
+    let result: AnswerReviewItem["result"] = "blank";
+    if (chosenIndex !== null) {
+      result = chosenIndex === question.correct_index ? "correct" : "wrong";
+    }
+    return [
+      {
+        number: index + 1,
+        questionId: question.id,
+        text: question.text,
+        options: question.options,
+        correctIndex: question.correct_index,
+        chosenIndex,
+        result,
+      },
+    ];
+  });
+}
+
 export type ExamResultRow<S> = {
   student: S;
   attempt: ExamAttempt | null;

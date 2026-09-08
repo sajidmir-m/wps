@@ -106,6 +106,7 @@ export default async function ExamResultsPage({
                   <th className="pb-2 text-right">Score</th>
                   <th className="pb-2 text-right">%</th>
                   <th className="pb-2">Result</th>
+                  <th className="pb-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +145,16 @@ export default async function ExamResultsPage({
                           Fail
                         </span>
                       )}
+                    </td>
+                    <td className="py-3 text-right">
+                      {appeared ? (
+                        <Link
+                          href={`/admin/exams/${exam.id}/results/${student.id}`}
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          View answers
+                        </Link>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

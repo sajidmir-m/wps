@@ -3,7 +3,8 @@ import { getSession } from "@/lib/auth";
 import { Shell, Card } from "@/components/ui";
 import { ExamStart } from "@/components/exam-start";
 import { ExamWindow } from "@/components/exam-window";
-import { gradeAttempt, sanitizeAnswers, toPaperQuestions, violationLabel } from "@/lib/exam";
+import { gradeAttempt, sanitizeAnswers, toPaperQuestions, buildAnswerReview, violationLabel } from "@/lib/exam";
+import { ExamAnswerReview } from "@/components/exam-answer-review";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import type { Exam, ExamAttempt, ExamQuestion } from "@/lib/types";
@@ -107,12 +108,23 @@ export default async function StudentExamPage({
     );
   }
 
-  // Finished, one way or the other. Marks stay hidden until the admin closes
-  // the exam, so students cannot compare answers while others are still writing.
+  // Finished, one way or the other. Marks and the answer key stay hidden until
+  // the admin closes the exam, so nobody can share answers while others write.
   if (attempt && attempt.status !== "IN_PROGRESS") {
     const terminated = attempt.status === "TERMINATED";
     const revealed = exam.status === "CLOSED";
     const timedOut = attempt.termination_reason === "TIME_UP" && !terminated;
+
+    let review = null;
+    if (revealed) {
+      const { data: reviewRows } = await supabaseAdmin
+        .from("exam_questions")
+        .select("*")
+        .eq("exam_id", id);
+      const reviewQuestions = (reviewRows || []) as ExamQuestion[];
+      const cleanAnswers = sanitizeAnswers(reviewQuestions, attempt.answers ?? {});
+      review = buildAnswerReview(reviewQuestions, cleanAnswers, attempt.question_order);
+    }
 
     return (
       <Shell role="STUDENT" name={session.name} title={exam.title}>
@@ -149,7 +161,8 @@ export default async function StudentExamPage({
             </div>
           ) : (
             <p className="mt-4 rounded-xl bg-off-white px-4 py-3 text-sm text-muted">
-              Your marks will appear here once the exam is closed for everyone.
+              Your marks and the answer review will appear here once the exam is closed for
+              everyone.
             </p>
           )}
 
@@ -160,6 +173,17 @@ export default async function StudentExamPage({
             Back to exams
           </Link>
         </Card>
+
+        {revealed && review ? (
+          <Card className="mt-6">
+            <h2 className="font-display mb-2 text-2xl">Answer review</h2>
+            <p className="mb-4 text-sm text-muted">
+              Green = correct. Red = your wrong choice. The correct option is marked on every
+              question.
+            </p>
+            <ExamAnswerReview items={review} />
+          </Card>
+        ) : null}
       </Shell>
     );
   }

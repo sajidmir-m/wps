@@ -14,7 +14,7 @@ export default async function StudentExamsPage() {
     supabaseAdmin
       .from("exams")
       .select("*")
-      .eq("status", "PUBLISHED")
+      .in("status", ["PUBLISHED", "CLOSED"])
       .order("created_at", { ascending: false }),
     supabaseAdmin.from("exam_attempts").select("*").eq("student_id", session.id),
   ]);
@@ -23,20 +23,27 @@ export default async function StudentExamsPage() {
   const attempts = (attemptsData.data || []) as ExamAttempt[];
   const attemptByExam = new Map(attempts.map((a) => [a.exam_id, a]));
 
-  const exams = allExams.filter((exam) => !exam.group_id || exam.group_id === session.groupId);
+  // Open exams for this group, plus any closed exam this student already sat.
+  const exams = allExams.filter((exam) => {
+    const inGroup = !exam.group_id || exam.group_id === session.groupId;
+    if (!inGroup) return false;
+    if (exam.status === "PUBLISHED") return true;
+    return attemptByExam.has(exam.id);
+  });
 
   return (
     <Shell
       role="STUDENT"
       name={session.name}
       title="Exams"
-      subtitle="Each exam can be taken once. Read the rules before you begin."
+      subtitle="Each exam can be taken once. After it is closed you can review every answer."
     >
       {exams.length ? (
         <div className="grid gap-4">
           {exams.map((exam) => {
             const attempt = attemptByExam.get(exam.id);
             const done = attempt && attempt.status !== "IN_PROGRESS";
+            const closed = exam.status === "CLOSED";
 
             return (
               <Card key={exam.id}>
@@ -46,18 +53,31 @@ export default async function StudentExamsPage() {
                     <p className="mt-1 text-sm text-muted">
                       {exam.duration_minutes} minutes · +{exam.marks_correct} per correct · −
                       {exam.marks_wrong} per wrong
+                      {closed ? " · closed" : ""}
                     </p>
                   </div>
 
                   {done ? (
-                    <span
-                      className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                        attempt.status === "TERMINATED"
-                          ? "bg-danger-light text-danger"
-                          : "bg-success-light text-success"
-                      }`}
-                    >
-                      {attempt.status === "TERMINATED" ? "Terminated" : "Submitted"}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                          attempt.status === "TERMINATED"
+                            ? "bg-danger-light text-danger"
+                            : "bg-success-light text-success"
+                        }`}
+                      >
+                        {attempt.status === "TERMINATED" ? "Terminated" : "Submitted"}
+                      </span>
+                      <Link
+                        href={`/student/exams/${exam.id}`}
+                        className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-dark"
+                      >
+                        {closed ? "View answers" : "View status"}
+                      </Link>
+                    </div>
+                  ) : closed ? (
+                    <span className="rounded-lg bg-off-white px-3 py-1.5 text-sm font-medium text-muted">
+                      Closed
                     </span>
                   ) : (
                     <Link
