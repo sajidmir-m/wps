@@ -56,6 +56,16 @@ export default async function ExamCertificatesPrintPage({
 
   return (
     <main className="certificate-print-root mx-auto max-w-[300mm] bg-off-white p-6 print:max-w-none print:bg-white print:p-0">
+      {/* Force landscape only on this page — avoids blank sheets from named @page rules */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media print {
+              @page { size: A4 landscape; margin: 8mm; }
+            }
+          `,
+        }}
+      />
       <div className="mb-6 flex flex-wrap items-center gap-3 print:hidden">
         <Link href={`/admin/exams/${exam.id}/results`} className={btnGhost}>
           Back to results
@@ -65,8 +75,8 @@ export default async function ExamCertificatesPrintPage({
         </div>
         <p className="w-full text-sm text-muted">
           {certificates.length} certificate{certificates.length === 1 ? "" : "s"} ready. In the
-          print dialog choose <b>Destination: Save as PDF</b>, paper size <b>A4 Landscape</b>, and
-          turn headers and footers off. Each student prints on a separate page.
+          print dialog: <b>Save as PDF</b>, paper <b>A4 Landscape</b>, turn{" "}
+          <b>Background graphics ON</b>, and turn <b>Headers and footers OFF</b>.
         </p>
       </div>
 

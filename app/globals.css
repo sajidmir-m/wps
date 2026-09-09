@@ -101,25 +101,18 @@ button:disabled,
   margin: 14mm 12mm;
 }
 
-/* Landscape sheets for KASSH.IT industrial training certificates. */
-@page certificate-landscape {
-  size: A4 landscape;
-  margin: 8mm;
-}
-
 @media print {
   body {
     background: #fff;
   }
 
-  /* Status swatches and totals lose their meaning if the browser drops
-     background colours to save ink. */
+  /* Force colours/borders to print (Chrome still respects this when possible). */
   * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
-  /* Repeat table headings on every page of a long roll. */
   thead {
     display: table-header-group;
   }
@@ -136,14 +129,29 @@ button:disabled,
     break-before: page;
   }
 
-  .certificate-print-root .certificate-sheet {
-    page: certificate-landscape;
-    width: 100%;
-    max-width: none;
-    min-height: auto;
-    height: 100%;
-    box-shadow: none;
+  /* Certificate batch: landscape pages, real in-flow sheets (no named-page / height:100%). */
+  .certificate-print-root {
+    background: #fff !important;
   }
+
+  .certificate-print-root .certificate-sheet {
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Only when printing the certificates route — set landscape without named pages. */
+@media print {
+  body:has(.certificate-print-root) {
+    margin: 0;
+  }
+}
+
+@page {
+  /* default remains portrait for other admin print sheets */
 }
 
 /* Screen polish for certificate preview (print keeps static layout). */
