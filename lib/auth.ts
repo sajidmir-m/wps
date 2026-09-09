@@ -17,16 +17,39 @@ function fromJwt(user: User): SessionUser | null {
   };
 }
 
+function isStaleRefreshError(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return (
+    error.code === "refresh_token_not_found" ||
+    error.code === "invalid_refresh_token" ||
+    /refresh token/i.test(error.message ?? "")
+  );
+}
+
+/** Drops a dead session cookie so the next request does not keep retrying refresh. */
+async function dropStaleSession() {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Cookie writes can fail in a render path; middleware will clear next.
+  }
+}
+
 // Cookie JWT is enough for most pages/actions. We only hit the profiles table
 // when the token is missing a role — that extra round trip was making every
 // click wait on Supabase.
 export const getSession = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
-  if (!user) return null;
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    if (isStaleRefreshError(error)) await dropStaleSession();
+    return null;
+  }
 
   const fromToken = fromJwt(user);
   if (fromToken) return fromToken;

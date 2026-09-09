@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
+function clearSupabaseCookies(request: NextRequest, response: NextResponse) {
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")) {
+      response.cookies.set(cookie.name, "", {
+        path: "/",
+        maxAge: 0,
+      });
+      request.cookies.delete(cookie.name);
+    }
+  }
+}
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -32,28 +44,41 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  // Stale/revoked refresh tokens leave cookies that fail on every page load.
+  // Wipe them so the user can sign in cleanly without console spam.
+  if (
+    error &&
+    (error.code === "refresh_token_not_found" ||
+      error.code === "invalid_refresh_token" ||
+      /refresh token/i.test(error.message))
+  ) {
+    clearSupabaseCookies(request, response);
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+  }
 
   const role = user?.user_metadata?.role as string | undefined;
   const pathname = request.nextUrl.pathname;
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  if (isAuthPage && user) {
+  if (isAuthPage && user && !error) {
     const url = request.nextUrl.clone();
     url.pathname = role === "ADMIN" ? "/admin" : "/student";
     return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/admin")) {
-    if (!user || role !== "ADMIN") {
+    if (!user || error || role !== "ADMIN") {
       const url = request.nextUrl.clone();
-      url.pathname = user ? "/student" : "/login";
+      url.pathname = user && !error ? "/student" : "/login";
       return NextResponse.redirect(url);
     }
   }
 
   if (pathname.startsWith("/student")) {
-    if (!user) {
+    if (!user || error) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
