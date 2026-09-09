@@ -100,7 +100,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
             alt=""
             width={560}
             height={560}
-            className="h-[72%] w-auto max-w-[72%] object-contain opacity-[0.09] mix-blend-multiply"
+            className="h-[72%] w-auto max-w-[72%] object-contain opacity-[0.08]"
             priority
           />
         </div>
@@ -113,14 +113,14 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
 
         <div className="relative z-10 flex h-full min-h-[calc(190mm-24px)] flex-col px-10 py-7 sm:px-12">
           <header className="flex items-start justify-between gap-6">
-            {/* Logo already includes wordmark + tagline — no circle, no duplicate text */}
+            {/* Transparent PNG logo — no white box */}
             <div className="ml-2 mt-1">
               <Image
                 src="/kasshit-logo.png"
                 alt="KASSH.IT"
                 width={160}
                 height={160}
-                className="h-[92px] w-auto object-contain mix-blend-multiply"
+                className="h-[96px] w-auto object-contain"
                 priority
               />
             </div>
