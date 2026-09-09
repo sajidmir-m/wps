@@ -90,7 +90,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
           aria-hidden
         />
 
-        {/* Watermark */}
+        {/* Watermark — multiply drops the white square from the PNG */}
         <div
           className="pointer-events-none absolute inset-0 flex items-center justify-center"
           aria-hidden
@@ -100,7 +100,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
             alt=""
             width={560}
             height={560}
-            className="h-[78%] w-auto max-w-[78%] object-contain opacity-[0.06]"
+            className="h-[72%] w-auto max-w-[72%] object-contain opacity-[0.09] mix-blend-multiply"
             priority
           />
         </div>
@@ -113,25 +113,16 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
 
         <div className="relative z-10 flex h-full min-h-[calc(190mm-24px)] flex-col px-10 py-7 sm:px-12">
           <header className="flex items-start justify-between gap-6">
-            <div className="flex items-center gap-3.5">
-              <div className="rounded-full bg-white p-1.5 shadow-[0_0_0_1px_rgba(184,149,61,0.45),0_8px_20px_-8px_rgba(15,23,42,0.35)]">
-                <Image
-                  src="/kasshit-logo.png"
-                  alt="KASSH.IT"
-                  width={88}
-                  height={88}
-                  className="h-[72px] w-[72px] object-contain"
-                  priority
-                />
-              </div>
-              <div>
-                <p className="text-[22px] font-bold tracking-[0.22em] text-[#0f172a]">
-                  KASSH.IT
-                </p>
-                <p className="mt-1 text-[11px] tracking-[0.18em] text-[#64748b]">
-                  EVERYDAY. RELIABLE. PROMISED.
-                </p>
-              </div>
+            {/* Logo already includes wordmark + tagline — no circle, no duplicate text */}
+            <div className="ml-2 mt-1">
+              <Image
+                src="/kasshit-logo.png"
+                alt="KASSH.IT"
+                width={160}
+                height={160}
+                className="h-[92px] w-auto object-contain mix-blend-multiply"
+                priority
+              />
             </div>
 
             <div className="rounded-lg border border-[#b8953d]/35 bg-white/70 px-4 py-2.5 text-right backdrop-blur-[2px]">
