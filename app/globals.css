@@ -145,3 +145,57 @@ button:disabled,
     box-shadow: none;
   }
 }
+
+/* Screen polish for certificate preview (print keeps static layout). */
+.cert-stage {
+  animation: cert-rise 0.7s ease-out both;
+}
+
+.cert-flourish {
+  animation: cert-draw 1s ease-out 0.25s both;
+}
+
+.cert-seal {
+  animation: cert-seal 0.9s ease-out 0.45s both;
+}
+
+@keyframes cert-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cert-draw {
+  from {
+    opacity: 0;
+    transform: scaleX(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes cert-seal {
+  from {
+    opacity: 0;
+    transform: scale(0.85) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@media print {
+  .cert-stage,
+  .cert-flourish,
+  .cert-seal {
+    animation: none !important;
+  }
+}
