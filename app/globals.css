@@ -96,12 +96,18 @@ button:disabled,
   }
 }
 
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 14mm 12mm;
-  }
+@page {
+  size: A4 portrait;
+  margin: 14mm 12mm;
+}
 
+/* Landscape sheets for KASSH.IT industrial training certificates. */
+@page certificate-landscape {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
   body {
     background: #fff;
   }
@@ -128,5 +134,14 @@ button:disabled,
 
   .print-break {
     break-before: page;
+  }
+
+  .certificate-print-root .certificate-sheet {
+    page: certificate-landscape;
+    width: 100%;
+    max-width: none;
+    min-height: auto;
+    height: 100%;
+    box-shadow: none;
   }
 }

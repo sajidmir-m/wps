@@ -68,6 +68,9 @@ export default async function AdminStudentAnswerSheetPage({
         <Link href={`/admin/exams/${exam.id}/results`} className={btnGhost}>
           Back to results
         </Link>
+        <Link href={`/admin/exams/${exam.id}/certificates/print#${student.id}`} className={btnGhost}>
+          Certificate
+        </Link>
         <Link href={`/admin/exams/${exam.id}/monitor`} className={btnGhost}>
           Live monitor
         </Link>

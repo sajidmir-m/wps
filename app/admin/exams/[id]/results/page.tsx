@@ -63,6 +63,9 @@ export default async function ExamResultsPage({
         <Link href={`/admin/exams/${exam.id}/results/print`} className={btnPrimary}>
           Export PDF
         </Link>
+        <Link href={`/admin/exams/${exam.id}/certificates/print`} className={btnPrimary}>
+          Training certificates
+        </Link>
       </div>
 
       {exam.status !== "CLOSED" ? (
@@ -148,12 +151,20 @@ export default async function ExamResultsPage({
                     </td>
                     <td className="py-3 text-right">
                       {appeared ? (
-                        <Link
-                          href={`/admin/exams/${exam.id}/results/${student.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
-                        >
-                          View answers
-                        </Link>
+                        <div className="flex flex-col items-end gap-1">
+                          <Link
+                            href={`/admin/exams/${exam.id}/results/${student.id}`}
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            View answers
+                          </Link>
+                          <Link
+                            href={`/admin/exams/${exam.id}/certificates/print#${student.id}`}
+                            className="text-xs font-medium text-muted hover:text-primary hover:underline"
+                          >
+                            Certificate
+                          </Link>
+                        </div>
                       ) : null}
                     </td>
                   </tr>

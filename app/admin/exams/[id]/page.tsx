@@ -58,6 +58,9 @@ export default async function ExamEditorPage({
         <Link href={`/admin/exams/${exam.id}/results`} className={btnGhost}>
           Results
         </Link>
+        <Link href={`/admin/exams/${exam.id}/certificates/print`} className={btnGhost}>
+          Certificates
+        </Link>
 
         {exam.status !== "PUBLISHED" ? (
           <ActionButton
