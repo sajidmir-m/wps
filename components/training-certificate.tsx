@@ -84,25 +84,38 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               />
             </div>
 
-            <header className="relative z-10 flex items-start justify-between gap-6">
-              <div className="ml-1 mt-1">
+            <header className="relative z-10 flex items-start justify-between gap-4">
+              <div className="ml-1 mt-1 flex flex-col items-start gap-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/kasshit-logo.png"
                   alt="KASSH.IT"
-                  className="h-[88px] w-auto object-contain"
+                  className="h-[80px] w-auto object-contain"
                 />
+                <p className="text-[11px] font-semibold tracking-wide text-[#0f172a]">
+                  kasshit.in
+                </p>
               </div>
 
-              <div className="rounded-md border border-[#b8953d] px-4 py-2.5 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8c6d28]">
-                  Industrial Training
-                </p>
-                <p className="mt-1 text-[12px] font-medium text-[#0f172a]">
-                  Womans Polytechnic College
-                </p>
-                <p className="text-[11px] text-[#475569]">Srinagar</p>
-                <p className="mt-1.5 text-[11px] text-[#334155]">Issued {data.issuedOn}</p>
+              <div className="flex flex-col items-end gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/msme-logo.svg"
+                  alt="MSME"
+                  className="h-[72px] w-auto object-contain"
+                />
+                <div className="rounded-md border border-[#b8953d] px-3 py-2 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8c6d28]">
+                    Industrial Training
+                  </p>
+                  <p className="mt-1 text-[11px] font-medium text-[#0f172a]">
+                    Womans Polytechnic College, Srinagar
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold text-[#034ea1]">
+                    UDYAM-JK-21-0084881
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[#475569]">Issued {data.issuedOn}</p>
+                </div>
               </div>
             </header>
 
@@ -183,7 +196,8 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 <div className="text-left text-[11px] leading-relaxed text-[#475569]">
                   <p>Training & assessment by</p>
                   <p className="font-semibold tracking-wide text-[#0f172a]">KASSH.IT</p>
-                  <p>Development → Deployment</p>
+                  <p className="font-medium text-[#034ea1]">kasshit.in</p>
+                  <p className="mt-0.5 text-[10px]">MSME · UDYAM-JK-21-0084881</p>
                 </div>
               </div>
 
