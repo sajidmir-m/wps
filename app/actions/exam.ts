@@ -29,6 +29,7 @@ export async function createExamAction(formData: FormData) {
   const duration = Number(formData.get("duration") || 30);
   const marksCorrect = Number(formData.get("marksCorrect") || 1);
   const marksWrong = Number(formData.get("marksWrong") || 0.25);
+  const presentationMax = Number(formData.get("presentationMax") || 50);
   if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
     return { error: "Duration must be between 1 and 300 minutes." };
   }
@@ -37,6 +38,9 @@ export async function createExamAction(formData: FormData) {
   }
   if (!Number.isFinite(marksWrong) || marksWrong < 0) {
     return { error: "Penalty cannot be negative." };
+  }
+  if (!Number.isFinite(presentationMax) || presentationMax < 0) {
+    return { error: "Presentation max marks cannot be negative." };
   }
 
   const { data, error } = await supabaseAdmin
@@ -47,6 +51,7 @@ export async function createExamAction(formData: FormData) {
       duration_minutes: duration,
       marks_correct: marksCorrect,
       marks_wrong: marksWrong,
+      presentation_max: presentationMax,
       group_id: String(formData.get("groupId") || "") || null,
       created_by: admin.id,
     })
@@ -69,8 +74,12 @@ export async function updateExamAction(formData: FormData) {
   const duration = Number(formData.get("duration") || 30);
   const marksCorrect = Number(formData.get("marksCorrect") || 1);
   const marksWrong = Number(formData.get("marksWrong") || 0.25);
+  const presentationMax = Number(formData.get("presentationMax") || 50);
   if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
     return { error: "Duration must be between 1 and 300 minutes." };
+  }
+  if (!Number.isFinite(presentationMax) || presentationMax < 0) {
+    return { error: "Presentation max marks cannot be negative." };
   }
 
   const { error } = await supabaseAdmin
@@ -81,6 +90,7 @@ export async function updateExamAction(formData: FormData) {
       duration_minutes: duration,
       marks_correct: marksCorrect,
       marks_wrong: marksWrong,
+      presentation_max: presentationMax,
       group_id: String(formData.get("groupId") || "") || null,
     })
     .eq("id", id);
@@ -483,4 +493,52 @@ export async function examHeartbeatAction(formData: FormData) {
     expired,
     terminated: attempt.status === "TERMINATED",
   };
+}
+
+/** Save presentation marks for finished attempts. Combined total = exam + presentation. */
+export async function savePresentationMarksAction(input: {
+  examId: string;
+  marks: { attemptId: string; presentationScore: number }[];
+}) {
+  const admin = await requireAdmin();
+  if (!admin) return { error: "Admin only." };
+
+  const examId = String(input.examId || "");
+  if (!examId) return { error: "Missing exam." };
+
+  const { data: exam } = await supabaseAdmin
+    .from("exams")
+    .select("presentation_max")
+    .eq("id", examId)
+    .maybeSingle();
+  if (!exam) return { error: "Exam not found." };
+
+  const max = Number(exam.presentation_max ?? 50);
+  const rows = Array.isArray(input.marks) ? input.marks : [];
+
+  for (const row of rows) {
+    const attemptId = String(row.attemptId || "");
+    const value = Number(row.presentationScore);
+    if (!attemptId) continue;
+    if (!Number.isFinite(value) || value < 0) {
+      return { error: "Presentation marks must be zero or more." };
+    }
+    if (value > max) {
+      return { error: `Presentation marks cannot exceed ${max}.` };
+    }
+
+    const { error } = await supabaseAdmin
+      .from("exam_attempts")
+      .update({ presentation_score: value })
+      .eq("id", attemptId)
+      .eq("exam_id", examId)
+      .neq("status", "IN_PROGRESS");
+
+    if (error) return { error: "Could not save presentation marks." };
+  }
+
+  refresh();
+  revalidatePath(`/admin/exams/${examId}/results`);
+  revalidatePath(`/admin/exams/${examId}/certificates/print`);
+  return { ok: true };
 }

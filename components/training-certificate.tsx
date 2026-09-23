@@ -6,9 +6,6 @@ export type CertificateData = {
   totalMarks: number;
   percent: number;
   passed: boolean;
-  correct: number;
-  wrong: number;
-  blank: number;
   rank: number | null;
   issuedOn: string;
   statusLabel: string;
@@ -145,7 +142,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               <div className="mt-5 w-full max-w-[680px] border-2 border-[#0f172a]">
                 <div className="grid grid-cols-2 border-[#b8953d] sm:grid-cols-4">
                   {[
-                    { label: "Score", value: `${data.score} / ${data.totalMarks}` },
+                    { label: "Total marks", value: `${data.score} / ${data.totalMarks}` },
                     { label: "Percentage", value: `${data.percent}%` },
                     { label: "Result", value: data.statusLabel, accent: true },
                     { label: "Rank", value: data.rank != null ? `#${data.rank}` : "—" },
@@ -170,14 +167,6 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                   ))}
                 </div>
               </div>
-
-              <p className="mt-3 text-[11px] tracking-wide text-[#475569]">
-                Correct {data.correct}
-                <span className="mx-2 text-[#94a3b8]">|</span>
-                Wrong {data.wrong}
-                <span className="mx-2 text-[#94a3b8]">|</span>
-                Blank {data.blank}
-              </p>
             </div>
 
             <footer className="relative z-10 mt-5 flex items-end justify-between gap-6">

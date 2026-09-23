@@ -42,10 +42,16 @@ export default async function ExamResultsPrintPage({
   const groups = (groupsData.data || []) as Group[];
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const questionCount = questionsData.count ?? 0;
-  const totalMarks = questionCount * Number(exam.marks_correct);
+  const examTotalMarks = questionCount * Number(exam.marks_correct);
+  const presentationMax = Number(exam.presentation_max ?? 50);
 
-  const { rows, summary } = buildExamResults(students, attempts, totalMarks);
-  const passMark = Math.round(totalMarks * (PASS_PERCENT / 100) * 100) / 100;
+  const { rows, summary } = buildExamResults(
+    students,
+    attempts,
+    examTotalMarks,
+    presentationMax,
+  );
+  const passMark = Math.round(summary.totalMarks * (PASS_PERCENT / 100) * 100) / 100;
 
   const scope = exam.group_id ? groupName.get(exam.group_id) || "Selected group" : "All groups";
   const generatedOn = new Date().toLocaleString("en-IN", {
@@ -75,8 +81,7 @@ export default async function ExamResultsPrintPage({
         <h1 className="font-display text-2xl">Womans Polytechnic College Srinagar</h1>
         <p className="mt-1 text-sm font-medium">{exam.title} — Result Sheet</p>
         <p className="mt-1 text-xs text-muted">
-          {scope} · {questionCount} questions · total {totalMarks} marks · pass mark {passMark} (
-          {PASS_PERCENT}%)
+          {scope} · total {summary.totalMarks} marks · pass mark {passMark} ({PASS_PERCENT}%)
         </p>
       </header>
 
@@ -85,7 +90,7 @@ export default async function ExamResultsPrintPage({
           { label: "Appeared", value: `${summary.appeared}/${summary.total}` },
           { label: "Passed", value: String(summary.passed) },
           { label: "Failed", value: String(summary.failed) },
-          { label: "Average", value: summary.appeared ? `${summary.average}%` : "—" },
+          { label: "Average", value: summary.appeared ? String(summary.averageScore) : "—" },
           { label: "Highest", value: summary.appeared ? String(summary.highest) : "—" },
         ].map((box) => (
           <div key={box.label} className="rounded-lg border border-line px-2 py-3">
@@ -104,10 +109,7 @@ export default async function ExamResultsPrintPage({
                 <th className={`${th} w-10 text-right`}>Rank</th>
                 <th className={th}>Student</th>
                 <th className={th}>Group</th>
-                <th className={`${th} text-right`}>Correct</th>
-                <th className={`${th} text-right`}>Wrong</th>
-                <th className={`${th} text-right`}>Blank</th>
-                <th className={`${th} text-right`}>Score</th>
+                <th className={`${th} text-right`}>Total marks</th>
                 <th className={`${th} text-right`}>%</th>
                 <th className={th}>Result</th>
               </tr>
@@ -120,10 +122,9 @@ export default async function ExamResultsPrintPage({
                   <td className={td}>
                     {student.group_id ? groupName.get(student.group_id) || "—" : "—"}
                   </td>
-                  <td className={`${td} text-right`}>{attempt?.correct_count ?? "—"}</td>
-                  <td className={`${td} text-right`}>{attempt?.wrong_count ?? "—"}</td>
-                  <td className={`${td} text-right`}>{attempt?.unanswered_count ?? "—"}</td>
-                  <td className={`${td} text-right font-medium`}>{appeared ? score : "—"}</td>
+                  <td className={`${td} text-right font-medium`}>
+                    {appeared ? `${score} / ${summary.totalMarks}` : "—"}
+                  </td>
                   <td className={`${td} text-right`}>{percent === null ? "—" : `${percent}%`}</td>
                   <td
                     className={`${td} font-medium ${

@@ -75,15 +75,20 @@ export default async function AdminHome() {
       title: string;
       status: string;
       marks_correct: number;
+      presentation_max?: number;
     }[]
   ).map((exam) => {
-    const totalMarks = (questionsPerExam.get(exam.id) ?? 0) * Number(exam.marks_correct);
+    const examTotal = (questionsPerExam.get(exam.id) ?? 0) * Number(exam.marks_correct);
+    const presentationMax = Number(exam.presentation_max ?? 50);
+    const totalMarks = examTotal + presentationMax;
     const finished = examAttempts.filter(
       (a) => a.exam_id === exam.id && a.status !== "IN_PROGRESS",
     );
-    const percents = finished.map((a) =>
-      totalMarks > 0 ? (Number(a.score ?? 0) / totalMarks) * 100 : 0,
-    );
+    const percents = finished.map((a) => {
+      const combined =
+        Number(a.score ?? 0) + Number((a as { presentation_score?: number }).presentation_score ?? 0);
+      return totalMarks > 0 ? (combined / totalMarks) * 100 : 0;
+    });
 
     return {
       ...exam,

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { Shell, Card, btnGhost, btnPrimary } from "@/components/ui";
+import { PresentationMarksEditor } from "@/components/presentation-marks-editor";
 import { buildExamResults, PASS_PERCENT } from "@/lib/exam";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -41,17 +42,32 @@ export default async function ExamResultsPage({
   const groups = (groupsData.data || []) as Group[];
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const questionCount = questionsData.count ?? 0;
-  const totalMarks = questionCount * Number(exam.marks_correct);
+  const examTotalMarks = questionCount * Number(exam.marks_correct);
+  const presentationMax = Number(exam.presentation_max ?? 50);
 
-  const { rows, summary } = buildExamResults(students, attempts, totalMarks);
-  const passMark = Math.round(totalMarks * (PASS_PERCENT / 100) * 100) / 100;
+  const { rows, summary } = buildExamResults(
+    students,
+    attempts,
+    examTotalMarks,
+    presentationMax,
+  );
+  const passMark = Math.round(summary.totalMarks * (PASS_PERCENT / 100) * 100) / 100;
+
+  const presentationRows = rows
+    .filter((row) => row.appeared && row.attempt)
+    .map((row) => ({
+      attemptId: row.attempt!.id,
+      studentId: row.student.id,
+      studentName: row.student.name,
+      presentationScore: row.attempt!.presentation_score,
+    }));
 
   return (
     <Shell
       role="ADMIN"
       name={admin.name}
       title={`Results · ${exam.title}`}
-      subtitle={`${questionCount} questions · total ${totalMarks} marks · pass mark ${passMark} (${PASS_PERCENT}%)`}
+      subtitle={`Total ${summary.totalMarks} marks · class average ${summary.averageScore} · pass mark ${passMark} (${PASS_PERCENT}%)`}
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link href={`/admin/exams/${exam.id}`} className={btnGhost}>
@@ -82,7 +98,7 @@ export default async function ExamResultsPage({
           { label: "Appeared", value: `${summary.appeared}/${summary.total}` },
           { label: "Passed", value: String(summary.passed) },
           { label: "Failed", value: String(summary.failed) },
-          { label: "Class average", value: summary.appeared ? `${summary.average}%` : "—" },
+          { label: "Class average", value: summary.appeared ? `${summary.averageScore}` : "—" },
           { label: "Highest", value: summary.appeared ? `${summary.highest}` : "—" },
         ].map((box) => (
           <Card key={box.label}>
@@ -92,21 +108,29 @@ export default async function ExamResultsPage({
         ))}
       </div>
 
+      <Card className="mb-6">
+        <PresentationMarksEditor
+          examId={exam.id}
+          presentationMax={presentationMax}
+          rows={presentationRows}
+        />
+      </Card>
+
       <Card>
         <h2 className="font-display mb-4 text-2xl">Merit list</h2>
+        <p className="mb-4 text-sm text-muted">
+          Totals only — each student’s combined marks out of {summary.totalMarks}.
+        </p>
 
         {summary.appeared ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="text-muted">
                 <tr>
                   <th className="pb-2">Rank</th>
                   <th className="pb-2">Student</th>
                   <th className="pb-2">Group</th>
-                  <th className="pb-2 text-right">Correct</th>
-                  <th className="pb-2 text-right">Wrong</th>
-                  <th className="pb-2 text-right">Blank</th>
-                  <th className="pb-2 text-right">Score</th>
+                  <th className="pb-2 text-right">Total marks</th>
                   <th className="pb-2 text-right">%</th>
                   <th className="pb-2">Result</th>
                   <th className="pb-2"></th>
@@ -123,11 +147,8 @@ export default async function ExamResultsPage({
                     <td className="py-3">
                       {student.group_id ? groupName.get(student.group_id) || "—" : "—"}
                     </td>
-                    <td className="py-3 text-right">{attempt?.correct_count ?? "—"}</td>
-                    <td className="py-3 text-right">{attempt?.wrong_count ?? "—"}</td>
-                    <td className="py-3 text-right">{attempt?.unanswered_count ?? "—"}</td>
                     <td className="py-3 text-right font-medium">
-                      {appeared ? `${score} / ${totalMarks}` : "—"}
+                      {appeared ? `${score} / ${summary.totalMarks}` : "—"}
                     </td>
                     <td className="py-3 text-right">{percent === null ? "—" : `${percent}%`}</td>
                     <td className="py-3">

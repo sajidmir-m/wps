@@ -322,28 +322,39 @@ export type ExamResultRow<S> = {
   student: S;
   attempt: ExamAttempt | null;
   appeared: boolean;
+  /** Combined total (exam + presentation). */
   score: number | null;
+  examScore: number | null;
+  presentationScore: number | null;
   percent: number | null;
   passed: boolean;
   rank: number | null;
 };
 
 /**
- * Ranks everyone who sat the paper, highest score first, and leaves those who
- * never started at the bottom without a rank. Equal scores share a rank, so two
- * students on 42 are both 3rd and the next is 5th.
+ * Ranks everyone who sat the paper by combined total marks (exam + presentation).
+ * Equal totals share a rank. Certificates and student views should show `score` only.
  */
 export function buildExamResults<S extends { id: string }>(
   students: S[],
   attempts: ExamAttempt[],
-  totalMarks: number,
+  examTotalMarks: number,
+  presentationMax = 0,
 ) {
+  const totalMarks = examTotalMarks + Math.max(0, presentationMax);
   const attemptByStudent = new Map(attempts.map((a) => [a.student_id, a]));
 
   const rows: ExamResultRow<S>[] = students.map((student) => {
     const attempt = attemptByStudent.get(student.id) ?? null;
     const appeared = Boolean(attempt && attempt.status !== "IN_PROGRESS");
-    const score = appeared ? Number(attempt?.score ?? 0) : null;
+    const examScore = appeared ? Number(attempt?.score ?? 0) : null;
+    const presentationScore = appeared
+      ? Number(attempt?.presentation_score ?? 0)
+      : null;
+    const score =
+      examScore === null || presentationScore === null
+        ? null
+        : Math.round((examScore + presentationScore) * 100) / 100;
     const percent =
       score === null || totalMarks <= 0 ? null : Math.round((score / totalMarks) * 1000) / 10;
 
@@ -352,6 +363,8 @@ export function buildExamResults<S extends { id: string }>(
       attempt,
       appeared,
       score,
+      examScore,
+      presentationScore,
       percent,
       passed: percent !== null && percent >= PASS_PERCENT,
       rank: null,
@@ -382,9 +395,14 @@ export function buildExamResults<S extends { id: string }>(
     average: appeared
       ? Math.round((percents.reduce((sum, value) => sum + value, 0) / appeared) * 10) / 10
       : 0,
+    averageScore: appeared
+      ? Math.round((scores.reduce((sum, value) => sum + value, 0) / appeared) * 100) / 100
+      : 0,
     highest: appeared ? Math.max(...scores) : 0,
     lowest: appeared ? Math.min(...scores) : 0,
     totalMarks,
+    examTotalMarks,
+    presentationMax: Math.max(0, presentationMax),
   };
 
   const ordered = [...ranked, ...rows.filter((row) => !row.appeared)];

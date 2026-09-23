@@ -68,6 +68,7 @@ export type Exam = {
   duration_minutes: number;
   marks_correct: number;
   marks_wrong: number;
+  presentation_max: number;
   status: ExamStatus;
   group_id: string | null;
   created_by: string;
@@ -98,6 +99,7 @@ export type ExamAttempt = {
   terminated_at: string | null;
   termination_reason: string | null;
   score: number | null;
+  presentation_score: number | null;
   correct_count: number | null;
   wrong_count: number | null;
   unanswered_count: number | null;

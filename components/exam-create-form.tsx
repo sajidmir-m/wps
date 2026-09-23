@@ -39,7 +39,7 @@ export function ExamCreateForm({ groups }: { groups: Group[] }) {
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Duration (minutes)">
           <input name="duration" type="number" min={1} defaultValue={30} className={inputClass} />
         </Field>
@@ -60,6 +60,16 @@ export function ExamCreateForm({ groups }: { groups: Group[] }) {
             step="0.25"
             min="0"
             defaultValue={0.25}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Presentation max">
+          <input
+            name="presentationMax"
+            type="number"
+            step="0.25"
+            min="0"
+            defaultValue={50}
             className={inputClass}
           />
         </Field>

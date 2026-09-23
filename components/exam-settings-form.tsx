@@ -69,6 +69,16 @@ export function ExamSettingsForm({ exam, groups }: { exam: Exam; groups: Group[]
             className={inputClass}
           />
         </Field>
+        <Field label="Presentation max marks">
+          <input
+            name="presentationMax"
+            type="number"
+            step="0.25"
+            min="0"
+            defaultValue={exam.presentation_max ?? 50}
+            className={inputClass}
+          />
+        </Field>
         <Field label="Group">
           <select name="groupId" defaultValue={exam.group_id ?? ""} className={inputClass}>
             <option value="">All students</option>

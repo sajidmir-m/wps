@@ -116,14 +116,23 @@ export default async function StudentExamPage({
     const timedOut = attempt.termination_reason === "TIME_UP" && !terminated;
 
     let review = null;
+    let totalMarksDisplay = "";
     if (revealed) {
-      const { data: reviewRows } = await supabaseAdmin
+      const { data: reviewRows, count: questionCount } = await supabaseAdmin
         .from("exam_questions")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("exam_id", id);
       const reviewQuestions = (reviewRows || []) as ExamQuestion[];
       const cleanAnswers = sanitizeAnswers(reviewQuestions, attempt.answers ?? {});
       review = buildAnswerReview(reviewQuestions, cleanAnswers, attempt.question_order);
+
+      const examTotal = (questionCount ?? reviewQuestions.length) * Number(exam.marks_correct);
+      const presentationMax = Number(exam.presentation_max ?? 50);
+      const combined =
+        Math.round(
+          (Number(attempt.score ?? 0) + Number(attempt.presentation_score ?? 0)) * 100,
+        ) / 100;
+      totalMarksDisplay = `${combined} / ${examTotal + presentationMax}`;
     }
 
     return (
@@ -146,18 +155,9 @@ export default async function StudentExamPage({
           <p className="mt-2 text-muted">You cannot take this exam again.</p>
 
           {revealed ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-4">
-              {[
-                { label: "Score", value: String(attempt.score ?? 0) },
-                { label: "Correct", value: String(attempt.correct_count ?? 0) },
-                { label: "Wrong", value: String(attempt.wrong_count ?? 0) },
-                { label: "Blank", value: String(attempt.unanswered_count ?? 0) },
-              ].map((box) => (
-                <div key={box.label} className="rounded-xl border border-line px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-wide text-muted">{box.label}</p>
-                  <p className="font-display mt-1 text-2xl">{box.value}</p>
-                </div>
-              ))}
+            <div className="mt-5 rounded-xl border border-line px-4 py-3 sm:max-w-xs">
+              <p className="text-[11px] uppercase tracking-wide text-muted">Total marks</p>
+              <p className="font-display mt-1 text-2xl">{totalMarksDisplay}</p>
             </div>
           ) : (
             <p className="mt-4 rounded-xl bg-off-white px-4 py-3 text-sm text-muted">

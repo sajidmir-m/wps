@@ -103,12 +103,19 @@ export default async function AdminStudentAnswerSheetPage({
               </p>
             ) : null}
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: "Score", value: String(attempt.score ?? 0) },
+                {
+                  label: "Total marks",
+                  value: String(
+                    Math.round(
+                      (Number(attempt.score ?? 0) + Number(attempt.presentation_score ?? 0)) *
+                        100,
+                    ) / 100,
+                  ),
+                },
                 { label: "Correct", value: String(attempt.correct_count ?? 0) },
                 { label: "Wrong", value: String(attempt.wrong_count ?? 0) },
-                { label: "Blank", value: String(attempt.unanswered_count ?? 0) },
               ].map((box) => (
                 <div key={box.label} className="rounded-xl border border-line px-4 py-3">
                   <p className="text-[11px] uppercase tracking-wide text-muted">{box.label}</p>

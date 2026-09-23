@@ -43,9 +43,15 @@ export default async function ExamCertificatesPrintPage({
   const groups = (groupsData.data || []) as Group[];
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const questionCount = questionsData.count ?? 0;
-  const totalMarks = questionCount * Number(exam.marks_correct);
+  const examTotalMarks = questionCount * Number(exam.marks_correct);
+  const presentationMax = Number(exam.presentation_max ?? 50);
 
-  const { rows } = buildExamResults(students, attempts, totalMarks);
+  const { rows, summary } = buildExamResults(
+    students,
+    attempts,
+    examTotalMarks,
+    presentationMax,
+  );
   const certificates = rows.filter((row) => row.appeared && row.attempt && row.percent !== null);
 
   const issuedOn = new Date().toLocaleDateString("en-IN", {
@@ -94,12 +100,9 @@ export default async function ExamCertificatesPrintPage({
                   groupName: student.group_id ? groupName.get(student.group_id) || "" : "",
                   examTitle: exam.title,
                   score: Number(score ?? 0),
-                  totalMarks,
+                  totalMarks: summary.totalMarks,
                   percent: Number(percent ?? 0),
                   passed,
-                  correct: Number(attempt?.correct_count ?? 0),
-                  wrong: Number(attempt?.wrong_count ?? 0),
-                  blank: Number(attempt?.unanswered_count ?? 0),
                   rank,
                   issuedOn,
                   statusLabel:
