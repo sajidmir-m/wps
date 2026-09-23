@@ -2,7 +2,7 @@
 -- Final displayed score = exam score + presentation score (no breakdown on certificates).
 
 ALTER TABLE public.exams
-  ADD COLUMN IF NOT EXISTS presentation_max NUMERIC NOT NULL DEFAULT 50
+  ADD COLUMN IF NOT EXISTS presentation_max NUMERIC NOT NULL DEFAULT 10
   CHECK (presentation_max >= 0);
 
 ALTER TABLE public.exam_attempts

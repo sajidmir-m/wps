@@ -127,7 +127,7 @@ export default async function StudentExamPage({
       review = buildAnswerReview(reviewQuestions, cleanAnswers, attempt.question_order);
 
       const examTotal = (questionCount ?? reviewQuestions.length) * Number(exam.marks_correct);
-      const presentationMax = Number(exam.presentation_max ?? 50);
+      const presentationMax = Number(exam.presentation_max ?? 10);
       const combined =
         Math.round(
           (Number(attempt.score ?? 0) + Number(attempt.presentation_score ?? 0)) * 100,

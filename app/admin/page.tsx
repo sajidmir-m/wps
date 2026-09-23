@@ -79,7 +79,7 @@ export default async function AdminHome() {
     }[]
   ).map((exam) => {
     const examTotal = (questionsPerExam.get(exam.id) ?? 0) * Number(exam.marks_correct);
-    const presentationMax = Number(exam.presentation_max ?? 50);
+    const presentationMax = Number(exam.presentation_max ?? 10);
     const totalMarks = examTotal + presentationMax;
     const finished = examAttempts.filter(
       (a) => a.exam_id === exam.id && a.status !== "IN_PROGRESS",

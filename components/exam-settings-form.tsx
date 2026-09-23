@@ -75,7 +75,7 @@ export function ExamSettingsForm({ exam, groups }: { exam: Exam; groups: Group[]
             type="number"
             step="0.25"
             min="0"
-            defaultValue={exam.presentation_max ?? 50}
+            defaultValue={exam.presentation_max ?? 10}
             className={inputClass}
           />
         </Field>

@@ -69,7 +69,7 @@ export function ExamCreateForm({ groups }: { groups: Group[] }) {
             type="number"
             step="0.25"
             min="0"
-            defaultValue={50}
+            defaultValue={10}
             className={inputClass}
           />
         </Field>

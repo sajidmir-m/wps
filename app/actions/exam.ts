@@ -29,7 +29,7 @@ export async function createExamAction(formData: FormData) {
   const duration = Number(formData.get("duration") || 30);
   const marksCorrect = Number(formData.get("marksCorrect") || 1);
   const marksWrong = Number(formData.get("marksWrong") || 0.25);
-  const presentationMax = Number(formData.get("presentationMax") || 50);
+  const presentationMax = Number(formData.get("presentationMax") || 10);
   if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
     return { error: "Duration must be between 1 and 300 minutes." };
   }
@@ -74,7 +74,7 @@ export async function updateExamAction(formData: FormData) {
   const duration = Number(formData.get("duration") || 30);
   const marksCorrect = Number(formData.get("marksCorrect") || 1);
   const marksWrong = Number(formData.get("marksWrong") || 0.25);
-  const presentationMax = Number(formData.get("presentationMax") || 50);
+  const presentationMax = Number(formData.get("presentationMax") || 10);
   if (!Number.isFinite(duration) || duration < 1 || duration > 300) {
     return { error: "Duration must be between 1 and 300 minutes." };
   }
@@ -513,7 +513,7 @@ export async function savePresentationMarksAction(input: {
     .maybeSingle();
   if (!exam) return { error: "Exam not found." };
 
-  const max = Number(exam.presentation_max ?? 50);
+  const max = Number(exam.presentation_max ?? 10);
   const rows = Array.isArray(input.marks) ? input.marks : [];
 
   for (const row of rows) {

@@ -43,7 +43,7 @@ export default async function ExamResultsPrintPage({
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const questionCount = questionsData.count ?? 0;
   const examTotalMarks = questionCount * Number(exam.marks_correct);
-  const presentationMax = Number(exam.presentation_max ?? 50);
+  const presentationMax = Number(exam.presentation_max ?? 10);
 
   const { rows, summary } = buildExamResults(
     students,
