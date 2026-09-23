@@ -97,26 +97,12 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 </p>
               </div>
 
-              <div className="flex flex-col items-end gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/msme-logo.svg"
-                  alt="MSME"
-                  className="h-[72px] w-auto object-contain"
-                />
-                <div className="rounded-md border border-[#b8953d] px-3 py-2 text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8c6d28]">
-                    Industrial Training
-                  </p>
-                  <p className="mt-1 text-[11px] font-medium text-[#0f172a]">
-                    Womans Polytechnic College, Srinagar
-                  </p>
-                  <p className="mt-1 text-[10px] font-semibold text-[#034ea1]">
-                    UDYAM-JK-21-0084881
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-[#475569]">Issued {data.issuedOn}</p>
-                </div>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/msme-logo.svg"
+                alt="MSME"
+                className="mt-1 h-[72px] w-auto object-contain"
+              />
             </header>
 
             <div className="relative z-10 mt-4 flex flex-col items-center text-center">
@@ -145,10 +131,15 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               ) : null}
 
               <p className="mx-auto mt-4 max-w-[640px] text-[13.5px] leading-relaxed text-[#334155]">
-                has successfully completed the industrial training programme{" "}
-                <span className="font-semibold text-[#0f172a]">{data.examTitle}</span>, covering
-                development to deployment — including React, JavaScript, and related technologies —
-                conducted and certified by{" "}
+                has successfully completed the{" "}
+                <span className="font-semibold text-[#0f172a]">offline industrial training</span>{" "}
+                programme{" "}
+                <span className="font-semibold text-[#0f172a]">{data.examTitle}</span> at{" "}
+                <span className="font-semibold text-[#0f172a]">
+                  Womans Polytechnic College, Srinagar
+                </span>
+                , covering development to deployment — including React, JavaScript, and related
+                technologies — conducted and certified by{" "}
                 <span className="font-semibold tracking-wide text-[#0f172a]">KASSH.IT</span>.
               </p>
 
