@@ -179,9 +179,6 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 <p className="mt-1.5">
                   <span className="font-semibold">Issue Date:</span> {data.issuedOn}
                 </p>
-                <p className="mt-1.5">
-                  <span className="font-semibold">Place:</span> Srinagar
-                </p>
               </div>
 
               <div className="min-w-[180px] text-center">
