@@ -48,7 +48,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
     <article className="certificate-sheet cert-stage print-keep relative mx-auto box-border w-full max-w-[280mm] overflow-hidden border-[10px] border-[#0f172a] bg-white text-[#0f172a] shadow-[0_25px_60px_-20px_rgba(15,23,42,0.35)] print:max-w-none print:shadow-none">
       <div className="border-[5px] border-[#b8953d]">
         <div className="relative border-[3px] border-[#0f172a]">
-          <div className="relative border border-[#b8953d]/70 px-9 py-6 sm:px-11 sm:py-7">
+          <div className="relative border border-[#b8953d]/70 px-8 pb-6 pt-[92px] sm:px-10 sm:pb-7 sm:pt-[96px]">
             {/* Watermark */}
             <div
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -62,28 +62,24 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               />
             </div>
 
-            <header className="relative z-10 flex items-start justify-between gap-4">
-              <div className="flex flex-col items-start gap-1">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/kasshit-logo.png"
-                  alt="KASSH.IT"
-                  className="h-[76px] w-auto object-contain"
-                />
-                <p className="text-[11px] font-semibold tracking-wide text-[#0f172a]">
-                  kasshit.in
-                </p>
-              </div>
-
+            {/* Logos fixed to top-left and top-right corners */}
+            <div className="absolute left-3 top-3 z-10 flex max-w-[140px] flex-col items-start gap-0.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/msme-logo.svg"
-                alt="MSME"
-                className="h-[70px] w-auto object-contain"
+                src="/kasshit-logo.png"
+                alt="KASSH.IT"
+                className="h-[72px] w-auto object-contain"
               />
-            </header>
+              <p className="text-[11px] font-semibold tracking-wide text-[#0f172a]">kasshit.in</p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/msme-logo.svg"
+              alt="MSME"
+              className="absolute right-3 top-3 z-10 h-[68px] w-auto object-contain"
+            />
 
-            <div className="relative z-10 mt-3 flex flex-col items-center text-center">
+            <div className="relative z-10 flex flex-col items-center text-center">
               <h1 className="font-display text-[34px] font-semibold uppercase leading-none tracking-[0.12em] text-[#b8953d] sm:text-[40px]">
                 Certificate of Completion
               </h1>
