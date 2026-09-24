@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 import { buildExamResults } from "@/lib/exam";
-import { TrainingCertificate } from "@/components/training-certificate";
+import { TrainingCertificate, buildCertificateId } from "@/components/training-certificate";
 import { PrintButton } from "@/components/print-button";
 import { btnGhost } from "@/components/ui";
 import { redirect, notFound } from "next/navigation";
@@ -54,11 +54,8 @@ export default async function ExamCertificatesPrintPage({
   );
   const certificates = rows.filter((row) => row.appeared && row.attempt && row.percent !== null);
 
-  const issuedOn = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  // Fixed issue date for this industrial training batch.
+  const issuedOn = "26-09-2026";
 
   return (
     <main className="certificate-print-root mx-auto max-w-[300mm] bg-off-white p-6 print:max-w-none print:bg-white print:p-0">
@@ -104,6 +101,7 @@ export default async function ExamCertificatesPrintPage({
                   percent: Number(percent ?? 0),
                   passed,
                   rank,
+                  certificateId: buildCertificateId(exam.id, attempt!.id),
                   issuedOn,
                   statusLabel:
                     attempt?.status === "TERMINATED"

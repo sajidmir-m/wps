@@ -7,9 +7,20 @@ export type CertificateData = {
   percent: number;
   passed: boolean;
   rank: number | null;
+  /** Unique certificate ID, e.g. KASSH-IT-260926-A1B2C3 */
+  certificateId: string;
+  /** Fixed display date, e.g. 26-09-2026 */
   issuedOn: string;
   statusLabel: string;
 };
+
+/** Stable unique certificate ID from exam + attempt (same every print). */
+export function buildCertificateId(examId: string, attemptId: string) {
+  const compact = `${examId.replace(/-/g, "")}${attemptId.replace(/-/g, "")}`
+    .slice(-10)
+    .toUpperCase();
+  return `KASSH-IT-260926-${compact}`;
+}
 
 function Flourish() {
   return (
@@ -160,9 +171,13 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 <p className="mt-0.5 text-[10px]">MSME · UDYAM-JK-21-0084881</p>
               </div>
 
-              <div className="text-center text-[12px] leading-relaxed text-[#334155]">
+              <div className="text-center text-[11px] leading-relaxed text-[#334155]">
                 <p>
-                  <span className="font-semibold">Date:</span> {data.issuedOn || "____________"}
+                  <span className="font-semibold">Certificate UID:</span>{" "}
+                  <span className="font-mono tracking-wide">{data.certificateId}</span>
+                </p>
+                <p className="mt-1.5">
+                  <span className="font-semibold">Issue Date:</span> {data.issuedOn}
                 </p>
                 <p className="mt-1.5">
                   <span className="font-semibold">Place:</span> Srinagar
