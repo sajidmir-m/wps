@@ -94,7 +94,7 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 <Flourish />
               </div>
 
-              <p className="mt-4 text-[13px] italic tracking-wide text-[#64748b]">
+              <p className="mt-4 text-[13px] italic tracking-wide text-[#0f172a]">
                 This is to certify that
               </p>
               <p className="font-display mt-2 text-[40px] leading-tight tracking-tight text-[#0f172a] sm:text-[44px]">
@@ -102,24 +102,13 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               </p>
               <div className="mt-2 h-[2px] w-44 bg-[#b8953d]" />
 
-              <p className="mx-auto mt-4 max-w-[620px] text-[13.5px] leading-snug text-[#334155]">
-                has successfully completed the{" "}
-                <b className="font-semibold text-[#0f172a]">
-                  Four-Week Offline Industrial Training Programme
-                </b>{" "}
-                on{" "}
-                <b className="font-semibold text-[#0f172a]">
-                  &ldquo;Web Development, GitHub, Vercel &amp; Artificial Intelligence&rdquo;
-                </b>{" "}
-                conducted at{" "}
-                <b className="font-semibold text-[#0f172a]">
-                  Government Polytechnic for Women, Srinagar
-                </b>
-                , and certified by{" "}
-                <b className="font-semibold tracking-wide text-[#0f172a]">KASSH.IT</b>.
+              <p className="mx-auto mt-4 max-w-[620px] text-[13.5px] font-bold leading-snug text-[#0f172a]">
+                has successfully completed the Four-Week Offline Industrial Training Programme on
+                &ldquo;Web Development, GitHub, Vercel &amp; Artificial Intelligence&rdquo;
+                conducted at Government Polytechnic for Women, Srinagar, and certified by KASSH.IT.
               </p>
 
-              <p className="mx-auto mt-3 max-w-[640px] text-[12.5px] italic leading-relaxed text-[#475569]">
+              <p className="mx-auto mt-3 max-w-[640px] text-[12.5px] leading-relaxed text-[#0f172a]">
                 The training provided practical exposure to Web Development, JavaScript, React,
                 GitHub, Vercel, Artificial Intelligence, and related technologies, covering the
                 development-to-deployment process.
