@@ -166,10 +166,16 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
                 </p>
               </div>
 
-              <div className="min-w-[180px] text-center">
-                <div className="mx-auto mb-1 h-10 w-40 border-b border-[#0f172a]" />
-                <p className="text-[13px] font-semibold text-[#0f172a]">Authorized Signatory</p>
-                <p className="text-[12px] font-semibold tracking-wide text-[#0f172a]">KASSH.IT</p>
+              <div className="flex min-w-[200px] flex-col items-end text-right">
+                <p className="font-display mb-1 text-[24px] italic leading-none text-[#1e293b]">
+                  Sajid Nazir
+                </p>
+                <div className="mb-1.5 h-[1.5px] w-44 bg-[#0f172a]" />
+                <p className="text-[13px] font-semibold text-[#0f172a]">Sajid Nazir</p>
+                <p className="text-[11px] text-[#475569]">Founder &amp; Co-founder, KASSH.IT</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-[#8c6d28]">
+                  Authorized Signatory
+                </p>
               </div>
             </footer>
           </div>
