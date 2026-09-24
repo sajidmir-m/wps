@@ -102,21 +102,21 @@ export function TrainingCertificate({ data }: { data: CertificateData }) {
               </p>
               <div className="mt-2 h-[2px] w-44 bg-[#b8953d]" />
 
-              <p className="mx-auto mt-4 max-w-[680px] text-[13.5px] leading-relaxed text-[#334155]">
+              <p className="mx-auto mt-4 max-w-[620px] text-[13.5px] leading-snug text-[#334155]">
                 has successfully completed the{" "}
-                <span className="font-semibold text-[#0f172a]">
+                <b className="font-semibold text-[#0f172a]">
                   Four-Week Offline Industrial Training Programme
-                </span>{" "}
+                </b>{" "}
                 on{" "}
-                <span className="font-semibold text-[#0f172a]">
-                  Web Development, GitHub, Vercel &amp; Artificial Intelligence
-                </span>{" "}
+                <b className="font-semibold text-[#0f172a]">
+                  &ldquo;Web Development, GitHub, Vercel &amp; Artificial Intelligence&rdquo;
+                </b>{" "}
                 conducted at{" "}
-                <span className="font-semibold text-[#0f172a]">
+                <b className="font-semibold text-[#0f172a]">
                   Government Polytechnic for Women, Srinagar
-                </span>
+                </b>
                 , and certified by{" "}
-                <span className="font-semibold tracking-wide text-[#0f172a]">KASSH.IT</span>.
+                <b className="font-semibold tracking-wide text-[#0f172a]">KASSH.IT</b>.
               </p>
 
               <p className="mx-auto mt-3 max-w-[640px] text-[12.5px] italic leading-relaxed text-[#475569]">
